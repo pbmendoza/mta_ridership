@@ -25,7 +25,7 @@ To compare pre-pandemic baseline ridership (from turnstile data) with post-pande
 ### 📁 Generated Mapping Files
 
 #### 🔗 Station-to-Complex Crosswalk (CRITICAL FILE)
-**File**: [`references/stations/stations_turnstile_mapping.csv`](../../stations/stations_turnstile_mapping.csv)
+**File**: [`references/stations/stations_turnstile_mapping.csv`](../stations/stations_turnstile_mapping.csv)
 
 This manually-created crosswalk is the cornerstone of our analysis. It maps every unique station name + line combination from turnstile data to official station complex IDs.
 
@@ -40,7 +40,7 @@ This manually-created crosswalk is the cornerstone of our analysis. It maps ever
 ### 📊 Station Data Extracted from Raw Sources
 
 #### 🎫 Turnstile Station List
-**File**: [`references/stations/stations_turnstile.csv`](../../stations/stations_turnstile.csv)
+**File**: [`references/stations/stations_turnstile.csv`](../stations/stations_turnstile.csv)
 
 Unique stations extracted from turnstile data files.
 
@@ -58,7 +58,7 @@ STATION,LINENAME
 *Note how Times Square appears with multiple naming variations!*
 
 #### 📱 Modern Ridership Station List  
-**File**: [`references/stations/stations_ridership.csv`](../../stations/stations_ridership.csv)
+**File**: [`references/stations/stations_ridership.csv`](../stations/stations_ridership.csv)
 
 Stations from the modern ridership data system.
 
@@ -69,7 +69,7 @@ Stations from the modern ridership data system.
 ### 🏛️ Official MTA Reference Files
 
 #### 🌐 MTA Subway Stations and Complexes
-**File**: [`references/stations/stations_complexes_official.csv`](../../stations/stations_complexes_official.csv)  
+**File**: [`references/stations/stations_complexes_official.csv`](../stations/stations_complexes_official.csv)  
 **Source**: [NY Open Data - MTA Subway Stations and Complexes](https://data.ny.gov/Transportation/MTA-Subway-Stations-and-Complexes/5f5g-n3cz/)
 
 The authoritative list of all subway stations **aggregated by station complex**.
@@ -82,7 +82,7 @@ The authoritative list of all subway stations **aggregated by station complex**.
 - GTFS Stop IDs for transit app integration
 
 #### 🚉 MTA Subway Stations (Individual)
-**File**: [`references/stations/stations_official.csv`](../../stations/stations_official.csv)  
+**File**: [`references/stations/stations_official.csv`](../stations/stations_official.csv)  
 **Source**: [NY Open Data - MTA Subway Stations](https://data.ny.gov/Transportation/MTA-Subway-Stations/39hk-dx4f/)
 
 Lists all 496 individual subway stations (not aggregated by complex).
