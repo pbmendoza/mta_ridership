@@ -35,6 +35,22 @@ This manually-created crosswalk is the cornerstone of our analysis. It maps ever
 - Manually verified for accuracy
 - Enables seamless data integration
 
+**Column Definitions**:
+
+| Column | Purpose | Source |
+|--------|---------|--------|
+| `STATION` | Station name from turnstile data | Turnstile files |
+| `LINENAME` | Line services from turnstile data | Turnstile files |
+| `station_id` | Unique identifier for each STATION+LINENAME combination | Generated |
+| `Complex ID` | Official MTA complex identifier (target mapping) | MTA official data |
+| `Complex Name` | Human-readable complex name for manual verification | MTA official data |
+| `Daytime Routes` | Current service patterns for manual verification | MTA official data |
+
+**Linking Logic**:
+- **Primary Join Keys**: `STATION` + `LINENAME` → `Complex ID`
+- **Verification Fields**: `Complex Name` and `Daytime Routes` loosely correspond to `STATION` and `LINENAME` for manual inspection
+- **Unique Identifier**: `station_id` serves as a unique key in turnstile data processing
+
 ---
 
 ### 📊 Station Data Extracted from Raw Sources
