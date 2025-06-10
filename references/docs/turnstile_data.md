@@ -91,17 +91,15 @@ NUMBER,OF,ENTRIES,2,NUMBER,,07-07-12,11:18:30,002918817,OF,,07-07-12,11:19:55,00
 ```
 **Action**: Exclude from analysis or apply specialized preprocessing
 
-### 🏖️ The Orchard Beach Mystery
-**Station**: ORCHARD BEACH (Control Area: OB01)
-**Issue**: Not a real subway station!
+### 🏖️ Station Removal: ORCHARD BEACH
 
-This was actually a set of bus fare turnstiles at Orchard Beach:
-- Used special "Orchard Beach Turnstile" tokens (1949-1954)
-- Located at beach bus loop, not on subway tracks
-- The 6 train has never extended past Pelham Bay Park
-- Included in data due to legacy fare control system
+The station name "ORCHARD BEACH" appeared in turnstile data from [dates to be determined] associated with the 6 train line. This presents a puzzling anomaly, as the Lexington Avenue/IRT Pelham Line (the "6" and "<6>" trains) has terminated at Pelham Bay Park since the final extension opened on December 20, 1920. The tracks have never been extended the additional mile to Orchard Beach.
 
-**Action**: Filter out in processing (see [`data/quarantine/turnstile/ORCHARD_BEACH_records.csv`](../../data/quarantine/turnstile/))
+Investigation reveals that control area "OB01" wasn't for a subway station at all—it was for a bank of bus-fare turnstiles that once stood in the Orchard Beach bus loop.
+
+The historical context: After World War II, the city's Surface Transportation Corp. (later MABSTOA) installed waist-high turnstiles at the beach to manage the huge crowds. Beachgoers would queue, drop a special "Orchard Beach Turnstile" token, and board return buses to Pelham Bay Park without requiring the driver to collect fares. These tokens first appeared in June 1949 and were struck again in 1954. Since these were legitimate fare-control equipment, when NYCT computerized the system in the 1990s, it assigned the location a standard four-character control-area ID: OB01 (Orchard Beach, control area #1).
+
+**Processing Action**: These records are filtered out and quarantined during data processing. See [`data/quarantine/turnstile/ORCHARD_BEACH_records.csv`](../../data/quarantine/turnstile/ORCHARD_BEACH_records.csv)
 
 ## 📈 Processed Data Summary
 
