@@ -8,8 +8,8 @@ Purpose:
     turnstile data and creates a reference file for station metadata.
 
 Features:
-    - Reads from combined turnstile data (data/interim/turnstile/turnstile_combined.csv)
-    - Extracts only STATION, LINENAME, DIVISION columns
+    - Reads from combined turnstile data (data/staging/turnstile/turnstile_combined.csv)
+    - Extracts only STATION, LINENAME columns
     - Removes duplicate combinations while preserving all three columns
     - Saves unique station reference data to references/stations/stations_turnstile.csv
 
@@ -22,7 +22,7 @@ Usage:
 
 Output:
     references/stations/stations_turnstile.csv: Unique station combinations with
-    STATION, LINENAME, and DIVISION columns sorted by station name.
+    STATION, LINENAME columns sorted by station name.
 """
 
 import sys
@@ -51,7 +51,7 @@ def extract_unique_stations() -> None:
     """Extract unique station combinations from turnstile data."""
     # Define paths relative to project root
     base_dir = find_project_root()
-    input_file = base_dir / "data" / "interim" / "turnstile" / "turnstile_combined.csv"
+    input_file = base_dir / "data" / "staging" / "turnstile" / "turnstile_combined.csv"
     output_dir = base_dir / "references" / "stations"
     output_file = output_dir / "stations_turnstile.csv"
     
@@ -61,7 +61,7 @@ def extract_unique_stations() -> None:
     print("🚇 Extracting unique station combinations from turnstile data...")
     
     # Read only the required columns
-    df = pd.read_csv(input_file, usecols=['STATION', 'LINENAME', 'DIVISION'])
+    df = pd.read_csv(input_file, usecols=['STATION', 'LINENAME'])
     
     print(f"📊 Read {len(df):,} records from {input_file.relative_to(base_dir)}")
     

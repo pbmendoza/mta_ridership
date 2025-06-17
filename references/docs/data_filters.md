@@ -45,9 +45,10 @@ Filters are applied at different stages of the pipeline to ensure data quality a
 - **Rationale**: Identifies broken or intermittently reporting turnstiles
 
 #### ⏰ Time Interval Filter
-- **Keep Only**: Records at `:00:00` or `:30:00`
-- **Example**: Keep 08:00:00, 08:30:00; Drop 08:15:00, 08:45:00
-- **Rationale**: More accurate than assuming fixed 4-hour intervals
+- **Keep Only**: Records at `:00:00`, `:30:00`, or `:22:00`
+- **Example**: Keep 08:00:00, 08:30:00, 08:22:00; Drop 08:15:00, 08:45:00
+- **Special Case**: Complex ID 604 (161 St-Yankee Stadium) reports at :22:00 instead of standard times
+- **Rationale**: More accurate than assuming fixed 4-hour intervals; includes Yankee Stadium exception
 
 #### 📊 Usage Threshold
 - **Maximum**: 7,200 entries/exits per 4-hour period
@@ -118,7 +119,7 @@ Filters are applied at different stages of the pipeline to ensure data quality a
 | Station Complex | != 502 | All stages | Data quality issue |
 | Division | BMT, IND, IRT only | Staging | Subway only |
 | Date Range | ≥ Oct 18, 2014 | Staging | Modern format only |
-| Time Intervals | :00:00, :30:00 | Processing | Regular reporting pattern |
+| Time Intervals | :00:00, :30:00, :22:00 | Processing | Regular reporting + Yankee Stadium |
 | Outlier Threshold | < 10% modal count | Processing | Remove broken turnstiles |
 | Max Usage | 7,200 per 4hr | Processing | Physical impossibility |
 | Baseline Years | 2015-2019 | Processing | Pre-pandemic period |
@@ -150,6 +151,9 @@ Filters are applied at different stages of the pipeline to ensure data quality a
 - Usage threshold based on turnstile physical limitations
 - Outlier threshold based on statistical analysis
 - Time intervals based on MTA reporting patterns
+
+### Special Cases
+- **Complex ID 604 (161 St-Yankee Stadium)**: This station uniquely reports at :22 minutes past the hour instead of standard :00 or :30. Without the :22:00 filter, 100% of this major station's data would be excluded from analysis.
 
 ## 📝 References
 
