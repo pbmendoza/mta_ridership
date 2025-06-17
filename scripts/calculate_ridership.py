@@ -15,6 +15,7 @@ Key Metrics:
 
 Features:
 - Processes all available ridership data files
+- Filters out incomplete months (e.g., partial data for current month)
 - Calculates monthly totals and OMNY adoption rates
 - Generates three separate output files
 - Uses station-to-PUMA mapping for geographic aggregation
@@ -34,6 +35,7 @@ from pathlib import Path
 import logging
 from datetime import datetime
 from typing import List
+import calendar
 
 
 def find_project_root() -> Path:
@@ -105,6 +107,61 @@ def load_all_ridership_data(data_dir: Path, logger: logging.Logger) -> pd.DataFr
     return combined_df
 
 
+def filter_incomplete_months(df: pd.DataFrame, logger: logging.Logger) -> pd.DataFrame:
+    """Filter out months that don't have complete data.
+    
+    Args:
+        df: DataFrame with daily ridership data
+        logger: Logger instance
+        
+    Returns:
+        DataFrame with only complete months
+    """
+    # Extract year and month for analysis
+    df['year'] = df['date'].dt.year
+    df['month'] = df['date'].dt.month
+    
+    # Count unique days per month in the data
+    days_per_month = df.groupby(['year', 'month'])['date'].nunique().reset_index()
+    days_per_month.columns = ['year', 'month', 'days_in_data']
+    
+    # Calculate expected days per month
+    days_per_month['expected_days'] = days_per_month.apply(
+        lambda row: calendar.monthrange(row['year'], row['month'])[1], axis=1
+    )
+    
+    # Identify incomplete months
+    incomplete_months = days_per_month[
+        days_per_month['days_in_data'] < days_per_month['expected_days']
+    ]
+    
+    if len(incomplete_months) > 0:
+        logger.warning("Found incomplete months that will be filtered out:")
+        for _, row in incomplete_months.iterrows():
+            logger.warning(
+                f"  - {calendar.month_name[row['month']]} {row['year']}: "
+                f"{row['days_in_data']} days of {row['expected_days']} expected"
+            )
+    
+    # Create a set of complete months for filtering
+    complete_months = days_per_month[
+        days_per_month['days_in_data'] == days_per_month['expected_days']
+    ][['year', 'month']]
+    
+    # Filter the original dataframe
+    initial_count = len(df)
+    df_filtered = df.merge(complete_months, on=['year', 'month'], how='inner')
+    filtered_count = initial_count - len(df_filtered)
+    
+    if filtered_count > 0:
+        logger.info(f"Filtered out {filtered_count:,} records from incomplete months")
+        logger.info(f"Remaining records: {len(df_filtered):,}")
+    else:
+        logger.info("No incomplete months found - all data retained")
+    
+    return df_filtered
+
+
 def calculate_monthly_metrics(df: pd.DataFrame, logger: logging.Logger) -> pd.DataFrame:
     """Calculate monthly ridership metrics by station.
     
@@ -115,9 +172,7 @@ def calculate_monthly_metrics(df: pd.DataFrame, logger: logging.Logger) -> pd.Da
     Returns:
         DataFrame with monthly metrics by station
     """
-    # Extract year and month
-    df['year'] = df['date'].dt.year
-    df['month'] = df['date'].dt.month
+    # Note: year and month columns are already added by filter_incomplete_months
     
     # Group by station, year, month, and payment method
     monthly_by_method = df.groupby(
@@ -405,6 +460,10 @@ def main():
         # Load all ridership data
         logger.info("\n📊 Loading ridership data...")
         ridership_df = load_all_ridership_data(ridership_dir, logger)
+        
+        # Filter out incomplete months
+        logger.info("\n🔍 Filtering incomplete months...")
+        ridership_df = filter_incomplete_months(ridership_df, logger)
         
         # Calculate monthly metrics by station
         logger.info("\n📈 Calculating monthly metrics...")
