@@ -36,6 +36,10 @@ from pathlib import Path
 import logging
 from datetime import datetime
 
+# Special case stations requiring modified baseline calculations
+WTC_CORTLANDT_COMPLEX_ID = 328  # Closed until Sept 2018
+SECOND_AVE_SUBWAY_COMPLEX_IDS = [475, 476, 477]  # Opened Jan 2017
+
 
 def find_project_root() -> Path:
     """Find the project root by looking for .git directory."""
@@ -99,15 +103,71 @@ def calculate_baselines(base_dir: Path, logger: logging.Logger):
     
     logger.info(f"Filtered data to {len(df_baseline):,} records from 2015-2019")
     
-    # Calculate monthly totals by complex and month
-    monthly_by_station = df_baseline.groupby(['Complex ID', 'MONTH']).agg({
+    # Create list of all special case stations
+    special_case_ids = [WTC_CORTLANDT_COMPLEX_ID] + SECOND_AVE_SUBWAY_COMPLEX_IDS
+    
+    # Process regular stations (excluding all special cases)
+    df_regular = df_baseline[~df_baseline['Complex ID'].isin(special_case_ids)].copy()
+    
+    # Calculate monthly totals for regular stations
+    monthly_regular = df_regular.groupby(['Complex ID', 'MONTH']).agg({
         'ENTRIES': 'sum',
         'EXITS': 'sum'
     }).reset_index()
     
-    # Calculate averages (5 years of data)
-    monthly_by_station['ENTRIES'] = monthly_by_station['ENTRIES'] / 5
-    monthly_by_station['EXITS'] = monthly_by_station['EXITS'] / 5
+    # Calculate averages for regular stations (5 years of data)
+    monthly_regular['ENTRIES'] = monthly_regular['ENTRIES'] / 5
+    monthly_regular['EXITS'] = monthly_regular['EXITS'] / 5
+    
+    # Process WTC-CORTLANDT separately (only 2019 data)
+    df_wtc = df[(df['Complex ID'] == WTC_CORTLANDT_COMPLEX_ID) & (df['YEAR'] == 2019)].copy()
+    
+    if len(df_wtc) > 0:
+        logger.info(f"Processing WTC-CORTLANDT special case: {len(df_wtc):,} records from 2019 only")
+        
+        # Calculate monthly totals for WTC-CORTLANDT
+        monthly_wtc = df_wtc.groupby(['Complex ID', 'MONTH']).agg({
+            'ENTRIES': 'sum',
+            'EXITS': 'sum'
+        }).reset_index()
+        
+        # No division needed - using only 1 year of data
+        logger.info("WTC-CORTLANDT baseline using 2019 data only (station was closed until Sept 2018)")
+        
+        # Combine regular stations with WTC-CORTLANDT
+        monthly_by_station = pd.concat([monthly_regular, monthly_wtc], ignore_index=True)
+    else:
+        logger.warning("No WTC-CORTLANDT data found for 2019")
+        monthly_by_station = monthly_regular
+    
+    # Process Second Avenue Subway stations (2018-2019 data only)
+    df_sas = df[(df['Complex ID'].isin(SECOND_AVE_SUBWAY_COMPLEX_IDS)) & 
+                (df['YEAR'].isin([2018, 2019]))].copy()
+    
+    if len(df_sas) > 0:
+        logger.info(f"Processing Second Avenue Subway special case: {len(df_sas):,} records from 2018-2019")
+        
+        # Get station names for logging
+        sas_names = df_sas.groupby('Complex ID')['PRIMARY_STATION_NAME'].first().to_dict()
+        station_list = ', '.join([f"{name} ({id})" for id, name in sas_names.items()])
+        logger.info(f"Second Avenue Subway stations: {station_list}")
+        
+        # Calculate monthly totals for Second Avenue Subway stations
+        monthly_sas = df_sas.groupby(['Complex ID', 'MONTH']).agg({
+            'ENTRIES': 'sum',
+            'EXITS': 'sum'
+        }).reset_index()
+        
+        # Calculate averages using 2 years of data
+        monthly_sas['ENTRIES'] = monthly_sas['ENTRIES'] / 2
+        monthly_sas['EXITS'] = monthly_sas['EXITS'] / 2
+        
+        logger.info("Second Avenue Subway baseline using 2018-2019 data only (stations opened Jan 2017)")
+        
+        # Combine with existing data
+        monthly_by_station = pd.concat([monthly_by_station, monthly_sas], ignore_index=True)
+    else:
+        logger.warning("No Second Avenue Subway data found for 2018-2019")
     
     # Rename columns for output
     monthly_by_station.columns = ['complex_id', 'month', 'entries', 'exits']
