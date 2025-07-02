@@ -40,7 +40,16 @@ Complete list of all filters, thresholds, and data quality controls applied duri
 pip install -r requirements.txt
 ```
 
-### Running the Complete Pipeline
+### Automated Pipeline Execution
+The easiest way to run the complete pipeline:
+```bash
+./run.sh
+```
+
+This script automatically runs all processing steps in the correct order with parallel execution where possible.
+
+### Manual Pipeline Execution
+Alternatively, run the scripts individually:
 ```bash
 # 1. Stage raw data
 python scripts/stage_turnstile_data.py
@@ -54,13 +63,16 @@ python scripts/process_ridership_data.py
 python scripts/calculate_baseline.py      # Pre-pandemic baseline
 python scripts/calculate_ridership.py     # Current ridership
 python scripts/calculate_final.py         # Final analysis with comparisons
+
+# 4. Enrich final data
+python scripts/enrich_final_data.py       # Add PUMA/station names and sort
 ```
 
 ## 📊 Data Flow Architecture
 
 ```
 Raw Turnstile Files → stage → process → calculate_baseline ↘
-                                                            calculate_final → Results
+                                                            calculate_final → enrich_final → Results
 Raw Ridership Files → stage → process → calculate_ridership ↗
 ```
 
@@ -97,6 +109,7 @@ mta_ridership/
 - Tracks OMNY adoption alongside traditional MetroCard usage
 - Aggregates data to multiple geographic levels
 - Calculates baseline comparisons for recovery tracking
+- Enriches final output with human-readable PUMA and station names
 
 ## 📈 Output Files
 
@@ -114,6 +127,7 @@ Each file includes:
 - OMNY adoption percentages (post-2020)
 - Comparison to 2015-2019 baseline
 - Year-over-year comparisons
+- Human-readable station and PUMA names (enriched output)
 
 ## 🛠️ Development
 
