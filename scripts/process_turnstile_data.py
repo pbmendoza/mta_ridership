@@ -132,7 +132,16 @@ class TurnstileDataProcessor:
         
         # Calculate the mode (most common count) and threshold
         mode_result = stats.mode(turnstile_counts)
-        mode_count = mode_result.mode[0] if hasattr(mode_result.mode, '__getitem__') else mode_result.mode
+        # Handle both old and new scipy API
+        if hasattr(mode_result.mode, 'shape') and mode_result.mode.shape == ():
+            # Scalar mode (new scipy)
+            mode_count = float(mode_result.mode)
+        elif hasattr(mode_result.mode, '__getitem__'):
+            # Array mode (old scipy)
+            mode_count = float(mode_result.mode[0])
+        else:
+            # Fallback
+            mode_count = float(mode_result.mode)
         threshold = mode_count * OUTLIER_THRESHOLD_FACTOR
         
         # Identify outlier turnstiles
