@@ -6,10 +6,7 @@ The `references/baseline_special_cases.csv` file centralizes the configuration f
 
 ## Why Special Cases?
 
-The standard baseline calculation uses 2015-2019 data to establish pre-pandemic ridership patterns. However, some stations require different baseline periods because they were:
-- Closed during part of the baseline period (e.g., WTC-Cortlandt)
-- Newly opened during the baseline period (e.g., Second Avenue Subway)
-- Under major renovation affecting ridership
+The standard baseline calculation uses 2015-2019 data to establish pre-pandemic ridership patterns. However, some stations require different baseline periods because they were closed for a significant period during part of the baseline period.
 
 ## Configuration File Structure
 
@@ -134,38 +131,6 @@ The script performs the following validation when loading the configuration:
    - `complex_id` must be a valid integer
    - `baseline_years` must be comma-separated integers
 4. **Error Reporting**: Provides row numbers for any validation errors
-
-## Current Special Cases
-
-### WTC-Cortlandt (Complex ID: 328)
-- **Years**: 2019 only
-- **Reason**: Closed from 9/11/2001 until 9/29/2018
-- **Impact**: Single-year baseline may not represent typical patterns
-
-### Second Avenue Subway Stations
-Three stations opened January 1, 2017:
-- **96 St-2 Ave** (Complex ID: 475)
-- **86 St-2 Ave** (Complex ID: 476)
-- **72 St-2 Ave** (Complex ID: 477)
-
-All use 2018-2019 baseline (excluding 2017 to allow ridership stabilization).
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Station not found in baseline output**
-   - Check if Complex ID exists in source data
-   - Verify years specified contain data
-
-2. **Unexpected baseline values**
-   - Review calculation logs for divisor used
-   - Confirm correct years in configuration
-
-3. **Script errors after adding special case**
-   - Check CSV formatting (no extra commas)
-   - Ensure years are properly formatted (quotes for multiple)
-   - Verify complex_id is a valid integer
 
 ## Related Files
 
