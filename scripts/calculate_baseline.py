@@ -16,6 +16,11 @@ Monthly Average Calculation:
 - Example: January entries for Station X across 2015-2019 = 500,000 total
           Monthly average for January at Station X = 500,000 / 5 = 100,000
 
+Special Cases:
+- Some stations require different baseline years due to closures or recent openings
+- Configuration is stored in: references/baseline_special_cases.csv
+- To add/modify special cases, edit the CSV configuration file
+
 Features:
 - Processes daily ridership data from 2015-2019
 - Creates monthly averages for entries and exits
@@ -36,9 +41,8 @@ from pathlib import Path
 import logging
 from datetime import datetime
 
-# Special case stations requiring modified baseline calculations
-WTC_CORTLANDT_COMPLEX_ID = 328  # Closed until Sept 2018
-SECOND_AVE_SUBWAY_COMPLEX_IDS = [475, 476, 477]  # Opened Jan 2017
+# Default baseline years for stations not in special cases
+DEFAULT_BASELINE_YEARS = [2015, 2016, 2017, 2018, 2019]
 
 
 def find_project_root() -> Path:
@@ -74,6 +78,62 @@ def setup_logging(base_dir: Path) -> logging.Logger:
     return logging.getLogger(__name__)
 
 
+def load_special_cases_config(base_dir: Path, logger: logging.Logger) -> dict:
+    """Load special cases configuration from CSV file."""
+    config_file = base_dir / "references" / "baseline_special_cases.csv"
+    
+    logger.info(f"Loading special cases configuration from {config_file.relative_to(base_dir)}")
+    
+    # Read CSV file
+    df_config = pd.read_csv(config_file)
+    
+    # Validate required columns exist
+    required_columns = ['complex_id', 'baseline_years']
+    missing_columns = [col for col in required_columns if col not in df_config.columns]
+    if missing_columns:
+        raise ValueError(f"Missing required columns in configuration file: {missing_columns}")
+    
+    # Convert to dictionary format
+    special_cases = {}
+    for idx, row in df_config.iterrows():
+        # Validate required fields are not missing
+        if pd.isna(row['complex_id']) or row['complex_id'] == '':
+            raise ValueError(f"Missing complex_id at row {idx + 2} in {config_file.name}")
+        
+        if pd.isna(row['baseline_years']) or row['baseline_years'] == '':
+            raise ValueError(f"Missing baseline_years at row {idx + 2} for complex_id {row['complex_id']}")
+        
+        try:
+            complex_id = int(row['complex_id'])
+        except ValueError:
+            raise ValueError(f"Invalid complex_id '{row['complex_id']}' at row {idx + 2} - must be an integer")
+        
+        # Parse baseline_years from string to list of integers
+        # Handle both single year (e.g., "2019") and multiple years (e.g., "2018,2019")
+        baseline_years_str = str(row['baseline_years'])
+        try:
+            baseline_years = [int(year.strip()) for year in baseline_years_str.split(',')]
+        except ValueError:
+            raise ValueError(f"Invalid baseline_years '{baseline_years_str}' at row {idx + 2} - must be comma-separated integers")
+        
+        special_cases[complex_id] = {
+            'station_name': row['station_name'] if pd.notna(row['station_name']) else f"Station {complex_id}",
+            'baseline_years': baseline_years,
+            'reason': row['reason'] if pd.notna(row['reason']) else '',
+            'notes': row['notes'] if pd.notna(row['notes']) else ''
+        }
+    
+    logger.info(f"Loaded {len(special_cases)} special case configurations")
+    
+    # Return config in same format as before
+    config = {
+        'special_cases': special_cases,
+        'default_baseline_years': DEFAULT_BASELINE_YEARS
+    }
+    
+    return config
+
+
 def calculate_baselines(base_dir: Path, logger: logging.Logger):
     """Calculate monthly baselines from daily ridership data."""
     
@@ -92,82 +152,90 @@ def calculate_baselines(base_dir: Path, logger: logging.Logger):
     
     logger.info(f"Reading daily ridership data from {input_file.relative_to(base_dir)}")
     
+    # Load special cases configuration
+    config = load_special_cases_config(base_dir, logger)
+    special_cases = config['special_cases']
+    default_years = config['default_baseline_years']
+    
     # Read daily ridership data
     df = pd.read_csv(input_file)
     
     # Convert DATE to datetime
     df['DATE'] = pd.to_datetime(df['DATE'])
     
-    # Filter for years 2015-2019
-    df_baseline = df[(df['YEAR'] >= 2015) & (df['YEAR'] <= 2019)].copy()
+    # Filter for baseline years
+    min_year = min(default_years)
+    max_year = max(default_years)
+    df_all_baseline_years = df[(df['YEAR'] >= min_year) & (df['YEAR'] <= max_year)].copy()
     
-    logger.info(f"Filtered data to {len(df_baseline):,} records from 2015-2019")
+    logger.info(f"Loaded data for years {min_year}-{max_year}: {len(df_all_baseline_years):,} records")
     
-    # Create list of all special case stations
-    special_case_ids = [WTC_CORTLANDT_COMPLEX_ID] + SECOND_AVE_SUBWAY_COMPLEX_IDS
+    # Initialize list to collect all monthly data
+    all_monthly_data = []
     
-    # Process regular stations (excluding all special cases)
-    df_regular = df_baseline[~df_baseline['Complex ID'].isin(special_case_ids)].copy()
+    # Get list of special case complex IDs
+    special_case_ids = list(special_cases.keys())
     
-    # Calculate monthly totals for regular stations
-    monthly_regular = df_regular.groupby(['Complex ID', 'MONTH']).agg({
-        'ENTRIES': 'sum',
-        'EXITS': 'sum'
-    }).reset_index()
+    # Process regular stations (those not in special cases)
+    regular_stations_mask = ~df_all_baseline_years['Complex ID'].isin(special_case_ids)
+    df_regular = df_all_baseline_years[regular_stations_mask & 
+                                       df_all_baseline_years['YEAR'].isin(default_years)].copy()
     
-    # Calculate averages for regular stations (5 years of data)
-    monthly_regular['ENTRIES'] = monthly_regular['ENTRIES'] / 5
-    monthly_regular['EXITS'] = monthly_regular['EXITS'] / 5
-    
-    # Process WTC-CORTLANDT separately (only 2019 data)
-    df_wtc = df[(df['Complex ID'] == WTC_CORTLANDT_COMPLEX_ID) & (df['YEAR'] == 2019)].copy()
-    
-    if len(df_wtc) > 0:
-        logger.info(f"Processing WTC-CORTLANDT special case: {len(df_wtc):,} records from 2019 only")
+    if len(df_regular) > 0:
+        logger.info(f"Processing {df_regular['Complex ID'].nunique()} regular stations with {len(default_years)}-year baseline")
         
-        # Calculate monthly totals for WTC-CORTLANDT
-        monthly_wtc = df_wtc.groupby(['Complex ID', 'MONTH']).agg({
+        # Calculate monthly totals for regular stations
+        monthly_regular = df_regular.groupby(['Complex ID', 'MONTH']).agg({
             'ENTRIES': 'sum',
             'EXITS': 'sum'
         }).reset_index()
         
-        # No division needed - using only 1 year of data
-        logger.info("WTC-CORTLANDT baseline using 2019 data only (station was closed until Sept 2018)")
+        # Calculate averages based on number of years
+        monthly_regular['ENTRIES'] = monthly_regular['ENTRIES'] / len(default_years)
+        monthly_regular['EXITS'] = monthly_regular['EXITS'] / len(default_years)
         
-        # Combine regular stations with WTC-CORTLANDT
-        monthly_by_station = pd.concat([monthly_regular, monthly_wtc], ignore_index=True)
-    else:
-        logger.warning("No WTC-CORTLANDT data found for 2019")
-        monthly_by_station = monthly_regular
+        all_monthly_data.append(monthly_regular)
     
-    # Process Second Avenue Subway stations (2018-2019 data only)
-    df_sas = df[(df['Complex ID'].isin(SECOND_AVE_SUBWAY_COMPLEX_IDS)) & 
-                (df['YEAR'].isin([2018, 2019]))].copy()
+    # Process special case stations
+    for complex_id, case_info in special_cases.items():
+        station_name = case_info['station_name']
+        baseline_years = case_info['baseline_years']
+        reason = case_info['reason']
+        
+        # Filter data for this station and its specific years
+        df_special = df_all_baseline_years[
+            (df_all_baseline_years['Complex ID'] == complex_id) & 
+            (df_all_baseline_years['YEAR'].isin(baseline_years))
+        ].copy()
+        
+        if len(df_special) > 0:
+            years_str = ', '.join(map(str, baseline_years))
+            logger.info(f"Processing special case: {station_name} ({complex_id}) - "
+                       f"{len(df_special):,} records from years {years_str}")
+            logger.info(f"  Reason: {reason}")
+            
+            # Calculate monthly totals
+            monthly_special = df_special.groupby(['Complex ID', 'MONTH']).agg({
+                'ENTRIES': 'sum',
+                'EXITS': 'sum'
+            }).reset_index()
+            
+            # Calculate averages based on number of years
+            divisor = len(baseline_years)
+            monthly_special['ENTRIES'] = monthly_special['ENTRIES'] / divisor
+            monthly_special['EXITS'] = monthly_special['EXITS'] / divisor
+            
+            all_monthly_data.append(monthly_special)
+        else:
+            logger.warning(f"No data found for special case station {station_name} ({complex_id}) "
+                          f"in years {baseline_years}")
     
-    if len(df_sas) > 0:
-        logger.info(f"Processing Second Avenue Subway special case: {len(df_sas):,} records from 2018-2019")
-        
-        # Get station names for logging
-        sas_names = df_sas.groupby('Complex ID')['PRIMARY_STATION_NAME'].first().to_dict()
-        station_list = ', '.join([f"{name} ({id})" for id, name in sas_names.items()])
-        logger.info(f"Second Avenue Subway stations: {station_list}")
-        
-        # Calculate monthly totals for Second Avenue Subway stations
-        monthly_sas = df_sas.groupby(['Complex ID', 'MONTH']).agg({
-            'ENTRIES': 'sum',
-            'EXITS': 'sum'
-        }).reset_index()
-        
-        # Calculate averages using 2 years of data
-        monthly_sas['ENTRIES'] = monthly_sas['ENTRIES'] / 2
-        monthly_sas['EXITS'] = monthly_sas['EXITS'] / 2
-        
-        logger.info("Second Avenue Subway baseline using 2018-2019 data only (stations opened Jan 2017)")
-        
-        # Combine with existing data
-        monthly_by_station = pd.concat([monthly_by_station, monthly_sas], ignore_index=True)
+    # Combine all monthly data
+    if all_monthly_data:
+        monthly_by_station = pd.concat(all_monthly_data, ignore_index=True)
     else:
-        logger.warning("No Second Avenue Subway data found for 2018-2019")
+        logger.error("No monthly data calculated!")
+        raise ValueError("No monthly data was calculated")
     
     # Rename columns for output
     monthly_by_station.columns = ['complex_id', 'month', 'entries', 'exits']
