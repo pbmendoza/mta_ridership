@@ -1,26 +1,13 @@
 complex_id,baseline_years,station_name,reason,notes
 328,2019,WTC-Cortlandt (1),Station closed from 9/11/2001 until 9/29/2018. Only 2019 provides full year of data.,Using single year baseline may not fully represent typical ridership patterns as station was still recovering after 17-year closure.
-475,"2018, 2019",96 St-2 Ave (Q),"Second Avenue Subway Phase 1 station opened January 1, 2017.",Excluded 2017 to allow ridership patterns to stabilize after initial opening.
-476,"2018, 2019",86 St-2 Ave (Q),"Second Avenue Subway Phase 1 station opened January 1, 2017.",Excluded 2017 to allow ridership patterns to stabilize after initial opening.
-477,"2018, 2019",72 St-2 Ave (Q),"Second Avenue Subway Phase 1 station opened January 1, 2017.",Excluded 2017 to allow ridership patterns to stabilize after initial opening.
+475,"2017, 2018, 2019",96 St-2 Ave (Q),"Second Avenue Subway Phase 1 station opened January 1, 2017.",Excluded years when the stations were not open.
+476,"2017, 2018, 2019",86 St-2 Ave (Q),"Second Avenue Subway Phase 1 station opened January 1, 2017.",Excluded years when the stations were not open.
+477,"2017, 2018, 2019",72 St-2 Ave (Q),"Second Avenue Subway Phase 1 station opened January 1, 2017.",Excluded years when the stations were not open.
 218,"2015, 2016, 2017, 2019","167 St (B,D)",Station closed between 08/27/2018 and 01/09/2019,Excluded years when the stations were closed.
 216,"2015, 2016, 2017, 2019","174-175 Sts (B,D)",Station closed between 08/13/2018 and 12/26/2018,Excluded years when the stations were closed.
 294,"2015, 2016, 2017, 2019",238 St (1),Station closed between 09/04/2018 and 01/02/2019,Excluded years when the stations were closed.
-444,"2015, 2016, 2017, 2018",Gun Hill Rd (5),Station closed between 03/01/2019 and 08/31/2019; 09/14/2019 and 03/30/2020,Excluded years when the stations were closed.
-74,"2015, 2016",18 Av (N),Station closed between 07/31/2017 and 07/01/2019,Excluded years when the stations were closed.
-75,"2015, 2016",20 Av (N),Station closed between 07/31/2017 and 07/01/2019,Excluded years when the stations were closed.
-79,"2015, 2016, 2019",86 St. (N),Station closed between 07/31/2017 and 10/29/2018,Excluded years when the stations were closed.
-246,"2015, 2016, 2019",Avenue I (F),Station closed between 05/22/2017 and 07/30/2018,Excluded years when the stations were closed.
-248,"2015, 2016, 2019",Avenue N (F),Station closed between 05/22/2017 and 07/30/2018,Excluded years when the stations were closed.
-249,"2015, 2016, 2019",Avenue P (F),Station closed between 05/22/2017 and 07/30/2018,Excluded years when the stations were closed.
-251,"2015, 2016, 2019",Avenue U (F),Station closed between 05/22/2017 and 07/30/2018,Excluded years when the stations were closed.
-78,"2015, 2016, 2019",Avenue U (N),Station closed between 07/31/2017 and 10/29/2018,Excluded years when the stations were closed.
-247,"2015, 2016, 2019",Bay Pkwy (F),Station closed between 05/22/2017 and 07/30/2018,Excluded years when the stations were closed.
 114,"2015, 2016, 2019",Central Av (M),Station closed between 09/02/2017 and 04/30/2018,Excluded years when the stations were closed.
-72,"2015, 2016",Fort Hamilton Pkwy (N),Station closed between 07/31/2017 and 07/01/2019,Excluded years when the stations were closed.
-77,"2015, 2016, 2019",Kings Hwy (N),Station closed between 07/31/2017 and 10/29/2018,Excluded years when the stations were closed.
 113,"2015, 2016, 2019",Knickerbocker Av (M),Station closed between 09/02/2017 and 04/30/2018,Excluded years when the stations were closed.
-615,"2015, 2016",New Utrecht Av (N)/62 St (D),Station closed between 07/31/2017 and 07/01/2019,Excluded years when the stations were closed.
 437,"2015, 2016, 2017, 2019",145 St (3),Station closed between 07/23/2018 and 11/28/2018,Excluded years when the stations were closed.
 149,"2015, 2016, 2017, 2019",163 St-Amsterdam Av (C),Station closed between 03/12/2018 and 09/29/2018,Excluded years when the stations were closed.
 605,"2015, 2016, 2017, 2018","168 St (A,C,1)",Station closed between 01/02/2019 and 12/21/2019,Excluded years when the stations were closed.
@@ -30,11 +17,14 @@ complex_id,baseline_years,station_name,reason,notes
 160,"2015, 2016, 2017, 2019","72 St (B,C)",Station closed between 05/07/2018 and 10/04/2018,Excluded years when the stations were closed.
 158,"2015, 2016, 2017, 2019","86 St (B,C)",Station closed between 06/04/2018 and 10/26/2018,Excluded years when the stations were closed.
 155,"2015, 2016, 2017, 2019","Cathedral Pkwy-110 St (B,C)",Station closed between 04/09/2018 and 09/02/2018,Excluded years when the stations were closed.
-82,"2015, 2016, 2019","104 St (J,Z)",Station closed between 03/13/2017 and 04/11/2018; 07/23/2018 and 12/22/2018,Excluded years when the stations were closed.
 81,"2015, 2016, 2017, 2018",111 St (J),Station closed between 01/14/2019 and 06/11/2019,Excluded years when the stations were closed.
-80,"2015, 2016, 2017","121 St (J,Z)",Station closed between 02/12/2018 and 11/13/2018,Excluded years when the stations were closed.
 3,"2015, 2016, 2019","30 Av (N,W)",Station closed between 10/23/2017 and 06/25/2018,Excluded years when the stations were closed.
 5,"2015, 2016, 2019","36 Av (N,W)",Station closed between 10/23/2017 and 06/25/2018,Excluded years when the stations were closed.
 6,"2015, 2016, 2017","39 Av-Dutch Kills (N,W)",Station closed between 07/02/2018 and 01/28/2019,Excluded years when the stations were closed.
 2,"2015, 2016, 2017, 2018","Astoria Blvd (N,W)",Station closed between 03/17/2019 and 12/19/2019,Excluded years when the stations were closed.
 4,"2015, 2016, 2017, 2019","Broadway (N,W)",Station closed between 07/02/2018 and 01/24/2019,Excluded years when the stations were closed.
+471,"2016, 2017, 2018, 2019",34 St-Hudson Yards (7),Station closed between 01/01/2015 and 09/14/2015.,Excluded years when the stations were closed.
+351,"2017, 2018, 2019",Van Siclen Av (3) ,Station closed between 4/20/2015 and 3/28/2016.,Excluded years when the stations were closed.
+346,"2015, 2018, 2019",Sutter Av-Rutland Rd (3) ,Station closed between 10/3/2016 and 6/18/2017.,Excluded years when the stations were closed.
+348,"2017, 2018, 2019",Rockaway Av (3) ,Station closed between 4/20/2015 and 3/28/2016.,Excluded years when the stations were closed.
+349,"2015, 2018, 2019",Junius St (3) ,Station closed between 10/3/2016 and 6/18/2017.,Excluded years when the stations were closed.
