@@ -58,12 +58,14 @@ from pathlib import Path
 from typing import List, Dict, Optional, Tuple
 import pandas as pd
 from tqdm import tqdm
+import time
 
 
 # Configuration constants
 EXCLUDED_STATIONS = ["ORCHARD BEACH"]
 ALLOWED_DIVISIONS = ["BMT", "IND", "IRT"]
 MODERN_FORMAT_START_DATE = 141018  # October 18, 2014
+BATCH_SIZE = 50  # Number of files to process in each batch
 
 
 def find_project_root() -> Path:
@@ -198,7 +200,7 @@ class TurnstileDataPipeline:
             
     def _combine_raw_files(self, files: List[Path]) -> pd.DataFrame:
         """
-        Combine multiple turnstile files into a single DataFrame.
+        Combine multiple turnstile files into a single DataFrame using batch processing.
         
         Args:
             files: List of file paths to combine
@@ -206,29 +208,100 @@ class TurnstileDataPipeline:
         Returns:
             pd.DataFrame: Combined dataset
         """
-        all_data = []
-        
         self.logger.info("📊 Reading and combining raw files...")
-        for filepath in tqdm(files, desc="Processing files"):
-            df = self._read_turnstile_file(filepath)
-            if df is not None:
-                all_data.append(df)
-                
-        if not all_data:
-            raise ValueError("No data successfully read from files")
+        self.logger.info(f"   📦 Processing {len(files)} files in batches of {BATCH_SIZE}")
+        
+        # Create temporary directory for batch files
+        temp_dir = self.staging_dir / "temp_batches"
+        temp_dir.mkdir(exist_ok=True)
+        
+        batch_files = []
+        total_records = 0
+        successful_files = 0
+        
+        try:
+            # Process files in batches
+            num_batches = (len(files) + BATCH_SIZE - 1) // BATCH_SIZE
+            start_time = time.time()
             
-        # Combine all DataFrames
-        combined_df = pd.concat(all_data, ignore_index=True)
-        
-        # Convert DATE column to datetime
-        combined_df['DATE'] = pd.to_datetime(combined_df['DATE'], format='%m/%d/%Y')
-        
-        # Sort by date and time
-        combined_df = combined_df.sort_values(['DATE', 'TIME'])
-        
-        self.logger.info(f"✅ Combined {len(all_data)} files with {len(combined_df):,} total records")
-        
-        return combined_df
+            for batch_idx in range(num_batches):
+                batch_start_time = time.time()
+                start_idx = batch_idx * BATCH_SIZE
+                end_idx = min((batch_idx + 1) * BATCH_SIZE, len(files))
+                batch_files_list = files[start_idx:end_idx]
+                
+                self.logger.info(f"\n   🔄 Processing batch {batch_idx + 1}/{num_batches} ({len(batch_files_list)} files)")
+                
+                batch_data = []
+                
+                # Process each file in the batch with progress bar
+                for filepath in tqdm(batch_files_list, desc=f"Batch {batch_idx + 1}", leave=False):
+                    df = self._read_turnstile_file(filepath)
+                    if df is not None:
+                        batch_data.append(df)
+                        successful_files += 1
+                
+                if batch_data:
+                    # Combine batch data
+                    batch_df = pd.concat(batch_data, ignore_index=True)
+                    batch_records = len(batch_df)
+                    total_records += batch_records
+                    
+                    # Save batch to temporary file
+                    batch_file = temp_dir / f"batch_{batch_idx:03d}.csv"
+                    batch_df.to_csv(batch_file, index=False)
+                    batch_files.append(batch_file)
+                    
+                    # Calculate timing
+                    batch_time = time.time() - batch_start_time
+                    elapsed_time = time.time() - start_time
+                    avg_time_per_batch = elapsed_time / (batch_idx + 1)
+                    remaining_batches = num_batches - batch_idx - 1
+                    eta_seconds = remaining_batches * avg_time_per_batch
+                    
+                    self.logger.info(f"   ✅ Batch {batch_idx + 1} saved: {batch_records:,} records (took {batch_time:.1f}s)")
+                    if remaining_batches > 0:
+                        self.logger.info(f"   ⏱️  Estimated time remaining: {eta_seconds/60:.1f} minutes")
+                    
+                    # Free memory
+                    del batch_data
+                    del batch_df
+                else:
+                    self.logger.warning(f"   ⚠️  Batch {batch_idx + 1} had no valid data")
+            
+            if not batch_files:
+                raise ValueError("No data successfully read from files")
+            
+            # Combine all batch files
+            self.logger.info(f"\n   🔗 Combining {len(batch_files)} batch files...")
+            
+            combined_chunks = []
+            for batch_file in tqdm(batch_files, desc="Combining batches"):
+                chunk = pd.read_csv(batch_file)
+                combined_chunks.append(chunk)
+            
+            combined_df = pd.concat(combined_chunks, ignore_index=True)
+            
+            # Convert DATE column to datetime
+            self.logger.info("   📅 Converting date formats...")
+            combined_df['DATE'] = pd.to_datetime(combined_df['DATE'], format='%m/%d/%Y')
+            
+            # Sort by date and time
+            self.logger.info("   🔀 Sorting by date and time...")
+            combined_df = combined_df.sort_values(['DATE', 'TIME'])
+            
+            self.logger.info(f"\n✅ Combined {successful_files} files with {len(combined_df):,} total records")
+            
+            return combined_df
+            
+        finally:
+            # Clean up temporary files
+            if temp_dir.exists():
+                self.logger.info("   🧹 Cleaning up temporary files...")
+                for batch_file in batch_files:
+                    if batch_file.exists():
+                        batch_file.unlink()
+                temp_dir.rmdir()
         
     def _apply_filters(self, df: pd.DataFrame) -> pd.DataFrame:
         """
