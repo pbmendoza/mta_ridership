@@ -63,41 +63,72 @@ fi
 PYTHON_CMD=$(command -v python3 || command -v python)
 echo "Using Python: $PYTHON_CMD"
 
-# Step 1: Stage Raw Data (Parallel)
+# Step 1: Stage Raw Data
 print_header "Step 1: Staging Raw Data"
-print_step "Running staging scripts in parallel..."
 
-# Check if scripts exist
-check_script "scripts/stage_turnstile_data.py"
-check_script "scripts/stage_ridership_data.py"
+# Check if turnstile combined file already exists
+TURNSTILE_COMBINED="data/staging/turnstile/turnstile_combined.csv"
+SKIP_TURNSTILE=false
 
-# Run staging scripts in parallel
-(
-    print_step "Staging turnstile data..."
-    $PYTHON_CMD scripts/stage_turnstile_data.py 2>&1 | sed 's/^/  [Turnstile] /'
-) &
-PID1=$!
-
-(
-    print_step "Staging ridership data..."
-    $PYTHON_CMD scripts/stage_ridership_data.py 2>&1 | sed 's/^/  [Ridership] /'
-) &
-PID2=$!
-
-# Wait for both to complete
-wait $PID1
-TURNSTILE_STAGE_STATUS=$?
-wait $PID2
-RIDERSHIP_STAGE_STATUS=$?
-
-if [ $TURNSTILE_STAGE_STATUS -ne 0 ]; then
-    print_error "Turnstile staging failed!"
-    exit 1
+if [ -f "$TURNSTILE_COMBINED" ]; then
+    FILESIZE=$(ls -lh "$TURNSTILE_COMBINED" | awk '{print $5}')
+    FILEDATE=$(stat -f "%Sm" -t "%Y-%m-%d" "$TURNSTILE_COMBINED" 2>/dev/null || date -r "$TURNSTILE_COMBINED" '+%Y-%m-%d' 2>/dev/null || echo "unknown")
+    print_step "Found existing turnstile combined file:"
+    echo "  📁 File: $TURNSTILE_COMBINED"
+    echo "  📏 Size: $FILESIZE"
+    echo "  📅 Date: $FILEDATE"
+    print_step "Skipping turnstile staging (using existing file)"
+    SKIP_TURNSTILE=true
+else
+    print_warning "Turnstile combined file not found - will create it"
 fi
 
-if [ $RIDERSHIP_STAGE_STATUS -ne 0 ]; then
-    print_error "Ridership staging failed!"
-    exit 1
+# Check if scripts exist
+check_script "scripts/stage_ridership_data.py"
+if [ "$SKIP_TURNSTILE" = false ]; then
+    check_script "scripts/stage_turnstile_data.py"
+fi
+
+# Run staging scripts
+if [ "$SKIP_TURNSTILE" = true ]; then
+    # Only run ridership staging
+    print_step "Staging ridership data..."
+    $PYTHON_CMD scripts/stage_ridership_data.py
+    if [ $? -ne 0 ]; then
+        print_error "Ridership staging failed!"
+        exit 1
+    fi
+else
+    # Run both staging scripts in parallel
+    print_step "Running staging scripts in parallel..."
+    
+    (
+        print_step "Staging turnstile data..."
+        $PYTHON_CMD scripts/stage_turnstile_data.py 2>&1 | sed 's/^/  [Turnstile] /'
+    ) &
+    PID1=$!
+    
+    (
+        print_step "Staging ridership data..."
+        $PYTHON_CMD scripts/stage_ridership_data.py 2>&1 | sed 's/^/  [Ridership] /'
+    ) &
+    PID2=$!
+    
+    # Wait for both to complete
+    wait $PID1
+    TURNSTILE_STAGE_STATUS=$?
+    wait $PID2
+    RIDERSHIP_STAGE_STATUS=$?
+    
+    if [ $TURNSTILE_STAGE_STATUS -ne 0 ]; then
+        print_error "Turnstile staging failed!"
+        exit 1
+    fi
+    
+    if [ $RIDERSHIP_STAGE_STATUS -ne 0 ]; then
+        print_error "Ridership staging failed!"
+        exit 1
+    fi
 fi
 
 print_step "Staging completed successfully!"
@@ -210,6 +241,12 @@ echo "  • results/final/monthly_ridership_nyc.csv"
 echo -e "\n${YELLOW}Optional utility scripts available:${NC}"
 echo "  • python scripts/add_puma_to_stations.py     - Map stations to PUMA boundaries"
 echo "  • python scripts/extract_unique_stations_turnstile.py - Extract station metadata"
+
+# Note about regenerating turnstile data
+echo -e "\n${YELLOW}Note about turnstile data:${NC}"
+echo "  • Historical turnstile data (2014-2023) is pre-combined for efficiency"
+echo "  • To regenerate: rm data/staging/turnstile/turnstile_combined.csv"
+echo "  • Then run: python scripts/stage_turnstile_data.py"
 
 # Check for logs
 if [ -d "logs" ]; then
