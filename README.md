@@ -33,41 +33,6 @@ Technical explanation of the Subunit Channel Position (SCP) identifier system us
 #### 5. [**Data Processing Filters**](references/docs/data_filters.md) 🔍
 Complete list of all filters, thresholds, and data quality controls applied during processing. Includes outlier detection, counter reset handling, and station exclusions with detailed rationales for each decision.
 
-## 🚀 Quick Start
-
-### Prerequisites
-```bash
-pip install -r requirements.txt
-```
-
-### Automated Pipeline Execution
-The easiest way to run the complete pipeline:
-```bash
-./run.sh
-```
-
-This script automatically runs all processing steps in the correct order with parallel execution where possible.
-
-### Manual Pipeline Execution
-Alternatively, run the scripts individually:
-```bash
-# 1. Stage raw data
-python scripts/stage_turnstile_data.py
-python scripts/stage_ridership_data.py
-
-# 2. Process staged data
-python scripts/process_turnstile_data.py
-python scripts/process_ridership_data.py
-
-# 3. Calculate metrics
-python scripts/calculate_baseline.py      # Pre-pandemic baseline
-python scripts/calculate_ridership.py     # Current ridership
-python scripts/calculate_final.py         # Final analysis with comparisons
-
-# 4. Enrich final data
-python scripts/enrich_final_data.py       # Add PUMA/station names and sort
-```
-
 ## 📊 Data Flow Architecture
 
 ```
