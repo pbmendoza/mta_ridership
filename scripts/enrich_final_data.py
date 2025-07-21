@@ -10,7 +10,6 @@ Features:
 - Adds station_name to monthly_ridership_station.csv from station complex reference
 - Sorts all files by year and month for chronological ordering
 - Additional sorting by puma/station_name for geographic consistency
-- Creates backups of original files before modification
 - Handles missing mappings gracefully with warnings
 - Provides detailed logging of enrichment statistics
 
@@ -21,7 +20,6 @@ Output:
     - Enriches and sorts results/final/monthly_ridership_puma.csv
     - Enriches and sorts results/final/monthly_ridership_station.csv
     - Sorts results/final/monthly_ridership_nyc.csv
-    - Creates backups as .bak files before modification
 
 Performance:
     - Processes files in-memory using pandas
@@ -32,7 +30,6 @@ import pandas as pd
 from pathlib import Path
 import logging
 from datetime import datetime
-import shutil
 from typing import Tuple, Dict
 
 
@@ -71,13 +68,6 @@ def setup_logging(base_dir: Path) -> logging.Logger:
     logger.info(f"Logging to: {log_file.relative_to(base_dir)}")
     
     return logger
-
-
-def create_backup(file_path: Path, logger: logging.Logger) -> None:
-    """Create a backup of the original file."""
-    backup_path = file_path.with_suffix(file_path.suffix + '.bak')
-    shutil.copy2(file_path, backup_path)
-    logger.info(f"Created backup: {backup_path.name}")
 
 
 def load_puma_crosswalk(base_dir: Path, logger: logging.Logger) -> pd.DataFrame:
@@ -120,9 +110,6 @@ def enrich_puma_data(base_dir: Path, logger: logging.Logger) -> Tuple[int, int]:
     puma_file = base_dir / "results" / "final" / "monthly_ridership_puma.csv"
     
     logger.info(f"\nEnriching PUMA data: {puma_file.relative_to(base_dir)}")
-    
-    # Create backup
-    create_backup(puma_file, logger)
     
     # Load data
     df = pd.read_csv(puma_file)
@@ -191,9 +178,6 @@ def enrich_station_data(base_dir: Path, logger: logging.Logger) -> Tuple[int, in
     
     logger.info(f"\nEnriching station data: {station_file.relative_to(base_dir)}")
     
-    # Create backup
-    create_backup(station_file, logger)
-    
     # Load data
     df = pd.read_csv(station_file)
     original_count = len(df)
@@ -256,9 +240,6 @@ def sort_nyc_data(base_dir: Path, logger: logging.Logger) -> int:
     nyc_file = base_dir / "results" / "final" / "monthly_ridership_nyc.csv"
     
     logger.info(f"\nSorting NYC data: {nyc_file.relative_to(base_dir)}")
-    
-    # Create backup
-    create_backup(nyc_file, logger)
     
     # Load data
     df = pd.read_csv(nyc_file)
