@@ -90,9 +90,11 @@ mta_ridership/
 Each file includes:
 - Total ridership counts
 - OMNY adoption percentages (post-2020)
-- Comparison to 2015-2019 baseline
+- Comparison to 2015-2019 baseline (uses entries only, not exits)
 - Year-over-year comparisons
 - Human-readable station and PUMA names (enriched output)
+
+**Note on Baseline Comparisons**: The `baseline_ridership` field represents average monthly **entries** from 2015-2019. While both entries and exits are calculated during baseline processing, only entries are used for comparison metrics. This provides a consistent measure for tracking subway usage recovery.
 
 ## 🛠️ Development
 

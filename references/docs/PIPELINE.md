@@ -98,6 +98,12 @@ The pipeline automatically detects existing processed files and optimizes execut
 - Calculates percentage changes
 - Generates comparison metrics
 
+**Important Note on Baseline Metrics**:
+- The baseline data includes both entries and exits from 2015-2019
+- However, `baseline_ridership` in final outputs uses **entries only**
+- This design choice ensures consistency since modern ridership data combines all payment methods
+- The baseline comparison formula: `ridership / baseline_entries`
+
 ### Step 6: Data Enrichment
 
 **Script**: `enrich_final_data.py`
