@@ -122,6 +122,10 @@ def merge_with_baseline(
         geo_col = None
     
     # Prepare baseline data - use entries as baseline_ridership
+    # NOTE: While the baseline calculation produces both entries and exits,
+    # we use only entries for comparison to maintain consistency with how
+    # modern ridership is reported (combined entry counts across all payment methods).
+    # This provides a single, clear metric for tracking recovery.
     baseline_df = baseline_df.rename(columns={
         'entries': 'baseline_ridership'
     })
