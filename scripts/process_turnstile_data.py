@@ -272,9 +272,6 @@ class TurnstileDataProcessor:
         # Convert DATE back to datetime for consistency
         daily_complex['DATE'] = pd.to_datetime(daily_complex['DATE'])
         
-        # Add total ridership column
-        daily_complex['TOTAL_RIDERSHIP'] = daily_complex['ENTRIES'] + daily_complex['EXITS']
-        
         # Sort by date and complex
         daily_complex = daily_complex.sort_values(['DATE', 'Complex ID'])
         
@@ -294,9 +291,6 @@ class TurnstileDataProcessor:
         # Add month and year for easier filtering
         df['YEAR'] = df['DATE'].dt.year
         df['MONTH'] = df['DATE'].dt.month
-        
-        # Calculate average ridership per turnstile
-        df['AVG_PER_TURNSTILE'] = df['TOTAL_RIDERSHIP'] / df['TURNSTILE_COUNT']
         
         return df
         
@@ -336,24 +330,22 @@ class TurnstileDataProcessor:
         # Ridership statistics
         total_entries = df['ENTRIES'].sum()
         total_exits = df['EXITS'].sum()
-        total_ridership = df['TOTAL_RIDERSHIP'].sum()
         
         self.logger.info(f"\n🚇 RIDERSHIP TOTALS:")
         self.logger.info(f"   Entries: {total_entries:,.0f}")
         self.logger.info(f"   Exits: {total_exits:,.0f}")
-        self.logger.info(f"   Total: {total_ridership:,.0f}")
         
-        # Top 10 complexes by total ridership
+        # Top 10 complexes by entries
         top_complexes = df.groupby('Complex ID').agg({
-            'TOTAL_RIDERSHIP': 'sum',
+            'ENTRIES': 'sum',
             'PRIMARY_STATION_NAME': 'first'
-        }).sort_values('TOTAL_RIDERSHIP', ascending=False).head(10)
+        }).sort_values('ENTRIES', ascending=False).head(10)
         
-        self.logger.info(f"\n🏆 TOP 10 COMPLEXES BY TOTAL RIDERSHIP:")
+        self.logger.info(f"\n🏆 TOP 10 COMPLEXES BY ENTRIES:")
         for idx, (complex_id, row) in enumerate(top_complexes.iterrows(), 1):
-            ridership = row['TOTAL_RIDERSHIP']
+            entries = row['ENTRIES']
             station = row['PRIMARY_STATION_NAME']
-            self.logger.info(f"   {idx}. {complex_id} ({station}): {ridership:,.0f}")
+            self.logger.info(f"   {idx}. {complex_id} ({station}): {entries:,.0f} entries")
             
         self.logger.info("="*60)
         
