@@ -19,10 +19,19 @@ import pandas as pd
 
 
 def stage_ridership_data(filename: str) -> None:
-    """Loads, filters, and stages MTA ridership data.
+    """Load, validate, and stage MTA ridership data.
+
+    This function reads a raw ridership CSV, accepting `ridership` values with or
+    without thousands separators (e.g., "1,234" or "1234"), strictly parses them as
+    integers, filters to subway entries, selects required columns, and writes a
+    staged CSV.
 
     Args:
-        filename: The name of the CSV file to process.
+        filename: Name of the raw ridership CSV in `data/raw/ridership`.
+
+    Raises:
+        ValueError: If required columns are missing or `ridership` contains
+            non-integer values or negative numbers.
     """
     # Define project root and paths
     PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -34,12 +43,35 @@ def stage_ridership_data(filename: str) -> None:
 
     # Load the ridership data
     print(f"🔄 Loading data from {raw_data_path}...")
-    # Specify dtypes to prevent warnings and ensure correct data types
+    # Restrict to required columns and control dtypes for determinism
+    usecols = ['transit_timestamp', 'transit_mode', 'station_complex_id', 'payment_method', 'ridership']
     dtypes = {
-        'station_complex_id': str,
-        'ridership': int
+        'transit_mode': 'string',
+        'station_complex_id': 'string',
+        'payment_method': 'string',
     }
-    df = pd.read_csv(raw_data_path, dtype=dtypes)
+    df = pd.read_csv(
+        raw_data_path,
+        usecols=usecols,
+        dtype=dtypes,
+        thousands=',',  # accept both "1,234" and "1234" in ridership
+        low_memory=False,
+    )
+
+    # Strictly parse ridership as integer and cast to nullable Int64
+    try:
+        df['ridership'] = pd.to_numeric(df['ridership'], errors='raise').astype('Int64')
+    except Exception as exc:
+        sample = df['ridership'].astype('string').head(5).tolist()
+        raise ValueError(f"Failed to parse 'ridership' as integer. Example values: {sample}") from exc
+
+    # Basic schema and value validations
+    required = {'transit_timestamp', 'transit_mode', 'station_complex_id', 'payment_method', 'ridership'}
+    missing = required - set(df.columns)
+    if missing:
+        raise ValueError(f"Missing required columns: {sorted(missing)}")
+    if (df['ridership'].fillna(0) < 0).any():
+        raise ValueError("Negative ridership values encountered")
 
     # Filter for subway data
     transit_modes_to_keep = ['subway']
@@ -56,9 +88,8 @@ def stage_ridership_data(filename: str) -> None:
     print(f"✂️ Selecting columns: {columns_to_keep}...")
     df_final = df_filtered[columns_to_keep]
     
-    #! temp fix for data problem: the data include some entries where station_complex_id = 502 and they are incorrectly remained in the data.
-    
-    df_final = df_final[df_final['station_complex_id'] != 502]
+    #! temp fix for data problem: the data include some entries where station_complex_id = '502' and they are incorrectly remained in the data.
+    df_final = df_final[df_final['station_complex_id'] != '502']
 
     # Save the processed data
     output_path = staging_path / filename
