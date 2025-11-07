@@ -1,8 +1,12 @@
 # SCP (Subunit-Channel-Position) Identifier in MTA Turnstile Data
 
+Last updated: 2025-11-07
+
 ## Overview
 
 The **SCP** code is a unique identifier for each turnstile device in the MTA subway system. It serves as an "address" within the station's fare control system. Each SCP follows the format `XX-YY-ZZ` (e.g., `00-00-00` or `01-00-01`), representing three distinct components in a hierarchical structure.
+
+See [`references/docs/turnstile_data.md`](turnstile_data.md) for the raw column names (`C/A`, `UNIT`, `SCP`) and how the unique `turnstile_id` is formed as `UNIT + '_' + C/A + '_' + SCP` during staging.
 
 ## Components
 
