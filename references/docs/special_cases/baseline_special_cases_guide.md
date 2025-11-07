@@ -1,5 +1,7 @@
 # Baseline Special Cases Configuration Guide
 
+Last updated: 2025-11-07
+
 ## Overview
 
 The `references/baseline_special_cases.csv` file centralizes the configuration for MTA stations that require special handling during baseline calculations. This approach replaces hardcoded values in the processing scripts, making the system more maintainable and flexible.
@@ -73,6 +75,13 @@ Monthly Baseline = Sum of entries/exits for month across specified years
                    ÷ Number of specified years
 ```
 
+## Verification and Logging
+
+- Verify the CSV against official station references using:
+  - `scripts/verify_baseline_special_cases.py`
+  - Output report: `logs/baseline_special_cases_verification.txt`
+- Baseline calculation logs: `logs/calculate_baseline.log`
+
 ## Adding a New Special Case
 
 ### Step 1: Edit the Configuration
@@ -136,6 +145,8 @@ The script performs the following validation when loading the configuration:
 
 - `scripts/calculate_baseline.py` - Processes this configuration
 - `references/baseline_special_cases.csv` - The configuration file
+- `scripts/verify_baseline_special_cases.py` - Verifies configuration against official stations
+- `logs/` - Contains verification and calculation logs
 - `references/docs/special_cases/wtc_cortlandt_special_case.md` - Detailed WTC history
 - `references/docs/special_cases/second_avenue_subway_special_case.md` - Second Ave details
 - `results/baseline/` - Output directory for baseline calculations
