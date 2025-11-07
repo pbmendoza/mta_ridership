@@ -1,5 +1,7 @@
 # Second Avenue Subway Special Case
 
+Last updated: 2025-11-07
+
 ## Overview
 
 The Second Avenue Subway stations (Complex IDs: 475, 476, 477) require special handling in baseline calculations due to their recent opening as part of the first major subway expansion in New York City in over 50 years.
@@ -48,23 +50,18 @@ Standard baseline calculations use 2015-2019 data, but the Second Avenue Subway 
 - **2017**: First full year of operation - ridership still ramping up
 - **2018-2019**: More stable ridership patterns established
 
-### Implementation
+### Implementation (CSV-driven)
 
-In `scripts/calculate_baseline.py`, these stations are processed separately:
+Configure these stations in `references/baseline_special_cases.csv` so the baseline calculator uses 2017–2019 (three full years after opening):
 
-1. **Regular stations**: Use 2015-2019 data, divide by 5 for monthly average
-2. **Second Avenue Subway**: Use only 2018-2019 data, divide by 2 for monthly average
-
-```python
-# Special case station constants
-SECOND_AVE_SUBWAY_COMPLEX_IDS = [475, 476, 477]  # Opened Jan 2017
-
-# Process Second Avenue Subway stations with 2-year average
-df_sas = df[(df['Complex ID'].isin(SECOND_AVE_SUBWAY_COMPLEX_IDS)) & 
-            (df['YEAR'].isin([2018, 2019]))]
-monthly_sas['ENTRIES'] = monthly_sas['ENTRIES'] / 2
-monthly_sas['EXITS'] = monthly_sas['EXITS'] / 2
+```csv
+complex_id,baseline_years,station_name,reason,notes
+475,"2017, 2018, 2019",96 St-2 Ave (Q),Second Avenue Subway Phase 1 station opened January 1, 2017.,Excluded years when the stations were not open.
+476,"2017, 2018, 2019",86 St-2 Ave (Q),Second Avenue Subway Phase 1 station opened January 1, 2017.,Excluded years when the stations were not open.
+477,"2017, 2018, 2019",72 St-2 Ave (Q),Second Avenue Subway Phase 1 station opened January 1, 2017.,Excluded years when the stations were not open.
 ```
+
+The `scripts/calculate_baseline.py` script reads this configuration and divides monthly totals by the number of specified baseline years (3). Use `scripts/verify_baseline_special_cases.py` to validate the configuration against official station references and see `logs/` for verification output.
 
 ### Rationale
 
