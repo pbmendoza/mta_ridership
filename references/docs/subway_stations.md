@@ -1,6 +1,8 @@
-# 🚇 NYC Subway Station Mapping Documentation
+# NYC Subway Station Mapping Documentation
 
-## 📋 Overview
+Last updated: 2025-11-07
+
+## Overview
 
 This document explains the complex challenge of mapping NYC subway station names across different MTA data sources and time periods. Station naming conventions have evolved significantly, creating a critical need for standardized mapping to enable accurate ridership analysis.
 
@@ -75,7 +77,7 @@ STATION,LINENAME
 
 ---
 
-### 🏛️ Official MTA Reference Files
+### Official MTA Reference Files
 
 #### 🌐 MTA Subway Stations and Complexes
 **File**: [`references/stations/stations_complexes_official.csv`](../stations/stations_complexes_official.csv)  
@@ -84,7 +86,7 @@ STATION,LINENAME
 The authoritative list of all subway stations **aggregated by station complex**.
 
 **Key Information**:
-- 445 station complexes
+- 445 station complexes (count based on current reference file; may change with upstream updates)
 - Includes Complex IDs (our primary mapping target)
 - ADA accessibility status
 - Manhattan CBD designation
@@ -94,13 +96,13 @@ The authoritative list of all subway stations **aggregated by station complex**.
 **File**: [`references/stations/stations_official.csv`](../stations/stations_official.csv)  
 **Source**: [NY Open Data - MTA Subway Stations](https://data.ny.gov/Transportation/MTA-Subway-Stations/39hk-dx4f/)
 
-Lists all 496 individual subway stations (not aggregated by complex).
+Lists all 496 individual subway stations (not aggregated by complex; count may change with upstream updates).
 
 **Used For**: Understanding how individual stations group into complexes.
 
 ---
 
-## 🚨 Important Considerations
+## Important Considerations
 
 ### Station Complex Aggregation
 - **Why Complexes?**: MTA cannot accurately allocate ridership between connected stations
@@ -112,7 +114,13 @@ Lists all 496 individual subway stations (not aggregated by complex).
 - Our mapping handles all historical variations
 - New stations or changes require mapping updates
 
-## 📈 Usage in Analysis Pipeline
+## Terminology
+
+- `Complex ID`: Official MTA identifier for a station complex (numeric), sourced from `references/stations/stations_complexes_official.csv`.
+- `station_id`: Internal identifier used for normalizing turnstile records; composed as `STATION + '_' + LINENAME` during staging.
+- `GTFS Stop ID`: Transit feed identifier for individual stops; useful for app integrations and reference joins.
+
+## Usage in Analysis Pipeline
 
 1. **Turnstile Processing**: [`scripts/stage_turnstile_data.py`](../../scripts/stage_turnstile_data.py) applies the mapping
 2. **Baseline Calculation**: Ensures historical data aligns with modern complex definitions
