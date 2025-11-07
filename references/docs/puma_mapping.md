@@ -1,6 +1,8 @@
-# 🗺️ PUMA Mapping Documentation
+# PUMA Mapping Documentation
 
-## 📋 Overview
+Last updated: 2025-11-07
+
+## Overview
 
 This document explains how we determine the Public Use Microdata Area (PUMA) for each subway station using geospatial coordinates. PUMAs are statistical geographic areas defined by the US Census Bureau for the dissemination of Public Use Microdata Sample (PUMS) data. 
 
@@ -12,7 +14,7 @@ This document explains how we determine the Public Use Microdata Area (PUMA) for
 - Boundaries derived from the US Census Bureau's TIGER project
 - Geographically modified to fit the New York City base map
 
-## 🎯 Purpose
+## Purpose
 
 Mapping stations to PUMAs allows us to:
 - Aggregate ridership data at the neighborhood level
@@ -20,7 +22,7 @@ Mapping stations to PUMAs allows us to:
 - Compare ridership trends between neighborhoods
 - Link transit data with census demographic information
 
-## 📊 Data Sources
+## Data Sources
 
 ### 1. PUMA Boundaries (2020 Census, Updated 2025)
 **File**: [`data/external/puma/2020_PUMAs.csv`](../../data/external/puma/2020_PUMAs.csv)  
@@ -50,7 +52,7 @@ Contains subway station complex information:
 
 Official PUMA codes and their corresponding neighborhood names for human-readable references. The names file is issued by the Census Bureau's Geography Division (the legal authority for PUMA definitions), with the latest version dated August 2022.
 
-## 🔧 Mapping Process
+## Mapping Process
 
 ### Script
 **File**: [`scripts/add_puma_to_stations.py`](../../scripts/add_puma_to_stations.py)
@@ -99,7 +101,7 @@ Official PUMA codes and their corresponding neighborhood names for human-readabl
   - `geopandas`: Main geospatial operations
   - `shapely`: Geometry parsing and manipulation
   - `pandas`: Data manipulation
-  - `rtree`: Spatial indexing for performance
+  - `rtree` (optional): Spatial indexing for performance. If `rtree` is not installed, GeoPandas uses a fallback index; processing remains correct but may be slower.
 
 ## 📍 Example Mapping
 
