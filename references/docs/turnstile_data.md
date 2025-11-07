@@ -1,21 +1,23 @@
-# 🚊 MTA Turnstile Data Documentation
+# MTA Turnstile Data Documentation
 
-## 📋 Overview
+Last updated: 2025-11-07
 
-The MTA Turnstile Dataset provides granular subway ridership data from 2010-2023, capturing entry and exit counts for individual turnstiles across all NYC subway stations. This historical dataset forms the foundation for pre-pandemic baseline analysis.
+## Overview
+
+The MTA Turnstile Dataset provides granular subway ridership data from 2010-2023, capturing entry and exit counts for individual turnstiles across all NYC subway stations. This historical dataset forms the foundation for pre-pandemic baseline analysis. By default, the pipeline processes only the modern CSV format (files dated ≥ 2014-10-18); the legacy 2010–2014 format is documented below but skipped unless explicitly enabled.
 
 **Status**: ⚠️ **RETIRED** - No longer actively maintained by MTA (replaced by modern ridership API)
 
-## 🗂️ Data Location
+## Data Location
 
 **Raw Files**: [`data/raw/turnstile/`](../../data/raw/turnstile/)
 - Format: Plain text files (`turnstile_YYMMDD.txt`)
 - Frequency: Weekly snapshots (Saturdays)
 - Size: ~750 files covering 13+ years
 
-## 📊 Data Format Evolution
+## Data Format Evolution
 
-### 🔴 Legacy Format (May 2010 - October 2014)
+### Legacy Format (May 2010 - October 2014)
 
 **Files**: `turnstile_100505.txt` through `turnstile_141011.txt`
 
@@ -42,7 +44,7 @@ A002,R051,02-00-00,04-17-10,00:00:00,REGULAR,002704717,000928793,04-17-10,04:00:
 ```
 *One row = multiple readings for the same turnstile*
 
-### 🟢 Modern Format (October 2014 - May 2023)
+### Modern Format (October 2014 - May 2023)
 
 **Files**: `turnstile_141018.txt` onwards
 
@@ -75,9 +77,9 @@ C/A,UNIT,SCP,STATION,LINENAME,DIVISION,DATE,TIME,DESC,ENTRIES,EXITS
 A002,R051,02-00-00,LEXINGTON AVE,NQR456,BMT,10/31/2015,00:00:00,REGULAR,0005382388,0001818635
 ```
 
-## 🚨 Data Quality Issues
+## Data Quality Issues
 
-### 💔 Corrupted File Alert
+### Corrupted File Alert
 **File**: [`turnstile_120714.txt`](../../data/raw/turnstile/turnstile_120714.txt) (July 14, 2012)
 
 Severe corruption including:
@@ -91,7 +93,7 @@ NUMBER,OF,ENTRIES,2,NUMBER,,07-07-12,11:18:30,002918817,OF,,07-07-12,11:19:55,00
 ```
 **Action**: Exclude from analysis or apply specialized preprocessing
 
-### 🏖️ Station Removal: ORCHARD BEACH
+### Station Removal: ORCHARD BEACH
 
 The station name "ORCHARD BEACH" appeared in turnstile data from [dates to be determined] associated with the 6 train line. This presents a puzzling anomaly, as the Lexington Avenue/IRT Pelham Line (the "6" and "<6>" trains) has terminated at Pelham Bay Park since the final extension opened on December 20, 1920. The tracks have never been extended the additional mile to Orchard Beach.
 
@@ -99,9 +101,9 @@ Investigation reveals that control area "OB01" wasn't for a subway station at al
 
 The historical context: After World War II, the city's Surface Transportation Corp. (later MABSTOA) installed waist-high turnstiles at the beach to manage the huge crowds. Beachgoers would queue, drop a special "Orchard Beach Turnstile" token, and board return buses to Pelham Bay Park without requiring the driver to collect fares. These tokens first appeared in June 1949 and were struck again in 1954. Since these were legitimate fare-control equipment, when NYCT computerized the system in the 1990s, it assigned the location a standard four-character control-area ID: OB01 (Orchard Beach, control area #1).
 
-**Processing Action**: These records are filtered out and quarantined during data processing. See [`data/quarantine/turnstile/ORCHARD_BEACH_records.csv`](../../data/quarantine/turnstile/ORCHARD_BEACH_records.csv)
+**Processing Action**: These records are filtered out and quarantined during data processing. See [`data/quarantine/turnstile/ORCHARD_BEACH_records.csv`](../../data/quarantine/turnstile/ORCHARD_BEACH_records.csv). Also see filtering rationale in [`references/docs/data_filters.md`](data_filters.md).
 
-## 📈 Processed Data Summary
+## Processed Data Summary
 
 ### Combined Dataset
 **File**: [`data/staging/turnstile/turnstile_combined.csv`](../../data/staging/turnstile/turnstile_combined.csv)
@@ -110,17 +112,12 @@ The historical context: After World War II, the city's Surface Transportation Co
 - **Unique Stations**: 572
 - **Unique Control Areas**: 471
 
-### Annual Breakdown
-| Year | Records | Processed File |
-|------|---------|----------------|
-| 2015 | 10,055,294 | [`turnstile_2015.csv`](../../data/interim/turnstile/turnstile_2015.csv) |
-| 2016 | 10,130,860 | [`turnstile_2016.csv`](../../data/interim/turnstile/turnstile_2016.csv) |
-| 2017 | 10,287,525 | [`turnstile_2017.csv`](../../data/interim/turnstile/turnstile_2017.csv) |
-| 2018 | 10,335,365 | [`turnstile_2018.csv`](../../data/interim/turnstile/turnstile_2018.csv) |
-| 2019 | 10,703,459 | [`turnstile_2019.csv`](../../data/interim/turnstile/turnstile_2019.csv) |
-| 2020 | 10,882,213 | [`turnstile_2020.csv`](../../data/interim/turnstile/turnstile_2020.csv) |
-| 2021 | 10,927,991 | [`turnstile_2021.csv`](../../data/interim/turnstile/turnstile_2021.csv) |
-| 2022 | 10,993,256 | [`turnstile_2022.csv`](../../data/interim/turnstile/turnstile_2022.csv) |
+Counts are approximate and may vary slightly with changes to quality filters or parsing.
+
+### Raw Monthly Historical Output (2015–2019)
+For non-averaged monthly historical totals based on 2015–2019, see:
+- [`results/baseline/raw_monthly_turnstile_2015_2019.csv`](../../results/baseline/raw_monthly_turnstile_2015_2019.csv)
+  - Columns: `complex_id`, `station_name`, `year`, `month`, `entries`, `exits`
 
 ## 🔗 Alternative Data Sources
 
