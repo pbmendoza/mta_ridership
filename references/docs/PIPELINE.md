@@ -1,11 +1,13 @@
 # MTA Ridership Data Processing Pipeline
 
+Last updated: 2025-11-07
+
 ## Overview
 
 The MTA Ridership Data Processing Pipeline (`run.sh`) is an automated workflow that processes NYC subway ridership data from two different eras:
 
-1. **Historical Data (2010-2020)**: Individual turnstile swipe counts
-2. **Modern Data (2020-present)**: Payment method data including OMNY adoption
+1. **Historical Data (2010–May 2023)**: Individual turnstile swipe counts (raw files available 2010–May 2023; processed/staged from 2014-10-18 modern format)
+2. **Modern Data (2020–present)**: Payment method data including OMNY adoption (months with incomplete days are filtered out)
 
 The pipeline combines these datasets to create comprehensive ridership metrics at multiple geographic levels with baseline comparisons.
 
@@ -89,6 +91,7 @@ The pipeline automatically detects existing processed files and optimizes execut
 - Processes 2020-present data
 - Tracks payment method distribution (MetroCard vs OMNY)
 - Aggregates to station, PUMA, and city-wide levels
+ - Filters out partial months to ensure complete monthly totals
 
 ### Step 5: Final Analysis
 
@@ -99,10 +102,10 @@ The pipeline automatically detects existing processed files and optimizes execut
 - Generates comparison metrics
 
 **Important Note on Baseline Metrics**:
-- The baseline data includes both entries and exits from 2015-2019
-- However, `baseline_ridership` in final outputs uses **entries only**
-- This design choice ensures consistency since modern ridership data combines all payment methods
-- The baseline comparison formula: `ridership / baseline_entries`
+- The baseline data includes both `entries` and `exits` from 2015–2019
+- Final outputs use baseline **entries only** as `baseline_ridership`
+- Rationale: ensures consistency with modern ridership (combined entry counts across all payment methods)
+- Formula used in final outputs: `baseline_comparison = ridership / baseline_ridership`
 
 ### Step 6: Data Enrichment
 
@@ -116,7 +119,7 @@ The pipeline automatically detects existing processed files and optimizes execut
 
 ### Turnstile Data Caching
 
-Historical turnstile data (2014-2023) never changes, so the pipeline caches the combined file:
+Historical turnstile data (2014–2023 modern-format subset) never changes, so the pipeline caches the combined file:
 
 - **First run**: Takes 15-20 minutes to combine 488 files
 - **Subsequent runs**: Skips turnstile staging, saves ~10 minutes
@@ -158,12 +161,30 @@ The updated `stage_turnstile_data.py` processes files in batches:
 2. **monthly_ridership_puma.csv**: Neighborhood-level aggregations  
 3. **monthly_ridership_nyc.csv**: City-wide totals
 
+#### Final Results Schemas
+- `results/final/monthly_ridership_station.csv`:
+  - Columns: `complex_id`, `station_name`, `year`, `month`, `period`, `ridership`, `baseline_ridership`, `baseline_comparison`, `omny_pct`
+- `results/final/monthly_ridership_puma.csv`:
+  - Columns: `puma`, `puma_name`, `year`, `month`, `period`, `ridership`, `baseline_ridership`, `baseline_comparison`, `omny_pct`
+- `results/final/monthly_ridership_nyc.csv`:
+  - Columns: `year`, `month`, `period`, `ridership`, `baseline_ridership`, `baseline_comparison`, `omny_pct`
+
 ### Intermediate Files
 
 - `data/staging/`: Combined raw data files
 - `data/processed/`: Cleaned and aggregated data
 - `results/baseline/`: Historical baseline metrics
 - `results/ridership/`: Modern ridership metrics
+
+#### Baseline Results Schemas (`results/baseline/`)
+- `monthly_baseline_station.csv`: `complex_id`, `month`, `entries`, `exits`
+- `monthly_baseline_puma.csv`: `puma`, `month`, `entries`, `exits`
+- `monthly_baseline_nyc.csv`: `nyc`, `month`, `entries`, `exits`
+
+#### Modern Ridership Schemas (`results/ridership/`)
+- `monthly_ridership_station.csv`: `complex_id`, `year`, `month`, `period`, `ridership`, `omny_pct`
+- `monthly_ridership_puma.csv`: `puma`, `year`, `month`, `period`, `ridership`, `omny_pct`
+- `monthly_ridership_nyc.csv`: `year`, `month`, `period`, `ridership`, `omny_pct`
 
 ## Execution Time
 
@@ -177,6 +198,8 @@ Typical pipeline execution times:
 | Calculations | 2-3 min | 2-3 min |
 | **Total** | **25-35 min** | **10-15 min** |
 
+Notes:
+- Times and sizes are approximate and depend on hardware and storage (e.g., ~16GB RAM Mac, SSD). Capture date: 2025-11-07.
 ## Troubleshooting
 
 ### Out of Memory Errors
@@ -204,6 +227,10 @@ If using OneDrive, large file operations may cause sync delays:
 1. Pause OneDrive sync during processing
 2. Resume after pipeline completion
 3. Consider moving data directory outside OneDrive
+
+### Baseline Special Cases Verification
+- Use `scripts/verify_baseline_special_cases.py` to validate entries in `references/baseline_special_cases.csv` against official station references.
+- Check verification and calculation logs under `logs/` (e.g., `baseline_special_cases_verification.txt`, `calculate_baseline.log`).
 
 ## Maintenance
 
