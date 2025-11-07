@@ -4,8 +4,8 @@
 
 This repository contains the data processing pipeline for **OSDC's NYC Subway Recovery Tracker** project ([https://www.osc.ny.gov/osdc/subway-recovery-tracker](https://www.osc.ny.gov/osdc/subway-recovery-tracker)). The pipeline processes NYC subway ridership data from two primary sources to track post-pandemic recovery patterns:
 
-- **Historical turnstile data (2010-2020)**: Individual turnstile swipe counts used to establish pre-pandemic baseline
-- **Modern ridership data (2020-present)**: Station-level ridership including OMNY adoption metrics
+- **Historical turnstile data (2014–2023; baseline uses 2015–2019)**: Individual turnstile swipe counts used to establish the pre-pandemic baseline
+- **Modern ridership data (2020–present)**: Station-level ridership including OMNY adoption metrics
 
 The pipeline produces monthly ridership metrics at three geographic levels:
 - **Station Complex**: Individual subway station complexes
@@ -70,7 +70,7 @@ mta_ridership/
 - **Station Mapping**: Links historical names to official complex IDs
 
 ### Processing Capabilities
-- Handles both legacy (2010-2014) and modern (2014+) turnstile formats
+- Processes modern-format turnstile files (Oct 2014+)
 - Tracks OMNY adoption alongside traditional MetroCard usage
 - Aggregates data to multiple geographic levels
 - Calculates baseline comparisons for recovery tracking
@@ -91,7 +91,7 @@ Each file includes:
 - Total ridership counts
 - OMNY adoption percentages (post-2020)
 - Comparison to 2015-2019 baseline (uses entries only, not exits)
-- Year-over-year comparisons
+- Period key (`period`, e.g., `YYYY-MM-01`)
 - Human-readable station and PUMA names (enriched output)
 
 **Note on Baseline Comparisons**: The `baseline_ridership` field represents average monthly **entries** from 2015-2019. While both entries and exits are calculated during baseline processing, only entries are used for comparison metrics. This provides a consistent measure for tracking subway usage recovery.
@@ -102,12 +102,15 @@ Each file includes:
 - All scripts use relative paths based on project root
 - Comprehensive logging to `logs/` directory
 - Automatic project root detection via `.git` directory
-- See [CLAUDE.md](CLAUDE.md) for detailed development guidelines
 
 ### Adding New Data
 1. Place raw files in appropriate `data/raw/` subdirectory
 2. Update staging scripts if format differs
-3. Run full pipeline to regenerate results
+3. Run full pipeline to regenerate results, e.g.:
+
+```bash
+bash run.sh
+```
 
 ## 📊 Data Sources
 
@@ -118,7 +121,7 @@ Each file includes:
 
 ## 🤝 Contributing
 
-This project is maintained by the Office of the State Deputy Comptroller (OSDC) for New York City's budget and economy. For questions or contributions related to the NYC Subway Recovery Tracker, please refer to the official project page.
+This project is maintained by the Office of the [Office of the State Deputy Comptroller for NYC](https://www.osc.ny.gov/osdc) and [Better Data Initiative](https://bdin.org). For questions or contributions related to the NYC Subway Recovery Tracker, please refer to the official project page.
 
 ## 📝 License
 
