@@ -1,5 +1,7 @@
 # WTC-Cortlandt Station Special Case
 
+Last updated: 2025-11-07
+
 ## Overview
 
 WTC-Cortlandt (Complex ID: 328) requires special handling in baseline calculations due to its extended closure following the September 11, 2001 attacks.
@@ -18,26 +20,16 @@ The standard baseline calculation uses 2015-2019 data to establish pre-pandemic 
 - **2018**: Only 3 months of data (Sept 29 - Dec 31)
 - **2019**: Full year of data available
 
-## Implementation
+## Implementation (CSV-driven)
 
-In `scripts/calculate_baseline.py`, WTC-Cortlandt is processed separately:
+Configure this station in `references/baseline_special_cases.csv` so the baseline calculator uses only 2019:
 
-1. **Regular stations**: Use 2015-2019 data, divide by 5 for monthly average
-2. **WTC-Cortlandt**: Use only 2019 data, no division needed (1 year only)
-
-```python
-# Special case station constant
-WTC_CORTLANDT_COMPLEX_ID = '328'
-
-# Process regular stations with 5-year average
-df_regular = df_baseline[df_baseline['Complex ID'] != WTC_CORTLANDT_COMPLEX_ID]
-monthly_regular['ENTRIES'] = monthly_regular['ENTRIES'] / 5
-monthly_regular['EXITS'] = monthly_regular['EXITS'] / 5
-
-# Process WTC-Cortlandt with 2019 data only
-df_wtc = df[(df['Complex ID'] == WTC_CORTLANDT_COMPLEX_ID) & (df['YEAR'] == 2019)]
-# No division - using single year of data
+```csv
+complex_id,baseline_years,station_name,reason,notes
+328,2019,WTC-Cortlandt (1),Station closed from 9/11/2001 until 9/29/2018. Only 2019 provides full year of data.,Using single year baseline may not fully represent typical ridership patterns as station was still recovering after 17-year closure.
 ```
+
+The `scripts/calculate_baseline.py` script reads this configuration and applies the correct averaging (no division since only one year is specified). Use `scripts/verify_baseline_special_cases.py` to validate the configuration against official station references and see `logs/` for verification output.
 
 ## Data Verification
 
