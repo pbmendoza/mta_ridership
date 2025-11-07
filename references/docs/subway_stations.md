@@ -73,13 +73,6 @@ STATION,LINENAME
 ```
 *Note how Times Square appears with multiple naming variations!*
 
-#### 📱 Modern Ridership Station List  
-**File**: [`references/stations/stations_ridership.csv`](../stations/stations_ridership.csv)
-
-Stations from the modern ridership data system.
-
-**Key Difference**: Uses standardized complex IDs matching official MTA designations.
-
 ---
 
 ### 🏛️ Official MTA Reference Files
