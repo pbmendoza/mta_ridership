@@ -1,10 +1,12 @@
-# 🔍 Data Processing Filters Documentation
+# Data Processing Filters Documentation
 
-## 📋 Overview
+Last updated: 2025-11-07
+
+## Overview
 
 This document provides a comprehensive list of all filters, thresholds, and data quality controls applied during the MTA ridership data processing pipeline. Understanding these filters is crucial for interpreting the final results and ensuring data quality.
 
-## 🎯 Filter Categories
+## Filter Categories
 
 Filters are applied at different stages of the pipeline to ensure data quality and consistency:
 
@@ -14,102 +16,100 @@ Filters are applied at different stages of the pipeline to ensure data quality a
 4. **Geographic Filters** - Ensure proper station mapping
 5. **Format Filters** - Handle data consistency issues
 
-## 📊 Turnstile Data Filters
+## Turnstile Data Filters
 
-### 1️⃣ Stage: Turnstile Staging (`stage_turnstile_data.py`)
+### Stage: Turnstile Staging (`stage_turnstile_data.py`)
 
-#### 🚫 Station Exclusions
+#### Station Exclusions
 - **Excluded Stations**: `["ORCHARD BEACH"]`
 - **Rationale**: Not a real subway station - these were bus fare turnstiles at Orchard Beach (see [turnstile documentation](turnstile_data.md) for full story)
 
-#### 🚇 Division Filter
+#### Division Filter
 - **Allowed Divisions**: `["BMT", "IND", "IRT"]`
 - **Excluded**: PTH (PATH), SRT (Staten Island Railway), RIT, JFK
 - **Rationale**: Focus exclusively on NYC subway system, excluding other transit modes
 
-#### 📅 Date Range Filter
+#### Date Range Filter
 - **Start Date**: October 18, 2014 (`MODERN_FORMAT_START_DATE = 141018`)
 - **Rationale**: Only processes files in modern CSV format for consistency
 
-#### 🔧 Temporary Data Quality Fix
-- **Filter**: Remove records where `station_complex_id == 502`
-- **Status**: Temporary fix for known data quality issue
-- **Impact**: Minimal - affects single station complex
+#### Note on Complex ID Filters
+- No Complex ID–based exclusions are applied during turnstile staging. Complex-level filters (e.g., Complex ID 502) are handled in modern ridership processing (see below).
 
-### 2️⃣ Stage: Turnstile Processing (`process_turnstile_data.py`)
+### Stage: Turnstile Processing (`process_turnstile_data.py`)
 
-#### 🎯 Outlier Detection
+#### Outlier Detection
 - **Method**: Modal record count analysis
 - **Threshold**: Remove turnstiles with < 10% of modal record count
 - **Formula**: `record_count < modal_count * 0.1`
 - **Rationale**: Identifies broken or intermittently reporting turnstiles
 
-#### ⏰ Time Interval Filter
+#### Time Interval Filter
 - **Keep Only**: Records at `:00:00`, `:30:00`, or `:22:00`
 - **Example**: Keep 08:00:00, 08:30:00, 08:22:00; Drop 08:15:00, 08:45:00
 - **Special Case**: Complex ID 604 (161 St-Yankee Stadium) reports at :22:00 instead of standard times
 - **Rationale**: More accurate than assuming fixed 4-hour intervals; includes Yankee Stadium exception
 
-#### 📊 Usage Threshold
+#### Usage Threshold
 - **Maximum**: 7,200 entries/exits per 4-hour period
 - **Calculation**: `USAGE_THRESHOLD_4HOURS = 7200`
 - **Logic**: Represents 1 swipe every 2 seconds for 4 hours continuously
 - **Rationale**: Anything higher is physically impossible
 
-#### 🔄 Counter Reset Handling
+#### Counter Reset Handling
 - **Method**: Clip negative differences to 0
 - **When Applied**: When current count < previous count
 - **Rationale**: Handles when cumulative counters reset to zero
 
-#### 🚮 First Reading Removal
+#### First Reading Removal
 - **Action**: Drop first reading from each turnstile
 - **Rationale**: No previous value to calculate difference from
 
-#### 📅 Output Year Filter
+#### Output Year Filter
 - **Years**: 2015-2019 only
 - **Purpose**: Pre-pandemic baseline period
 - **Note**: Even if processing 2010-2023 data, output is filtered
 
-#### 🗺️ Missing Mapping Filter
+#### Missing Mapping Filter
 - **Filter**: Drop records without Complex ID mapping
 - **Impact**: Ensures all records can be aggregated to station level
 
-## 📱 Modern Ridership Data Filters
+## Modern Ridership Data Filters
 
-### 3️⃣ Stage: Ridership Staging (`stage_ridership_data.py`)
+### Stage: Ridership Staging (`stage_ridership_data.py`)
 
-#### 🚇 Transit Mode Filter
+#### Transit Mode Filter
 - **Allowed Modes**: `['subway']` only
 - **Excluded**: bus, ferry, LIRR, Metro-North
 - **Rationale**: Maintain consistency with turnstile data scope
 
-#### 🔧 Station Complex Filter
-- **Filter**: Remove `station_complex_id == 502`
-- **Note**: Same as turnstile data for consistency
+#### Station Complex Filter
+- **Filter**: Remove `station_complex_id == 502` (Tompkinsville)
+- **Rationale**: Complex ID 502 is Tompkinsville on the Staten Island Railway (SIR), which is out of scope for NYC Subway analysis. Some modern ridership records appear with this Complex ID despite `transit_mode = 'subway'`; they are filtered during staging and reinforced in monthly calculations.
 
-### 4️⃣ Stage: Ridership Processing (`process_ridership_data.py`)
+### Stage: Ridership Processing (`process_ridership_data.py`)
 
-#### 📝 Data Normalization
+#### Data Normalization
 - **Payment Method**: Convert to uppercase
 - **Example**: "omny" → "OMNY", "metrocard" → "METROCARD"
 - **Rationale**: Handle inconsistent capitalization
 
-## 🗺️ Geographic Aggregation Filters
+## Geographic Aggregation Filters
 
-### 5️⃣ PUMA Level Aggregation
+### PUMA Level Aggregation
 
-#### 🏘️ PUMA Mapping Requirement
+#### PUMA Mapping Requirement
 - **Filter**: Exclude stations without PUMA assignment
 - **Impact**: Stations outside NYC boundaries
 - **Rationale**: Cannot aggregate to neighborhood level without mapping
 
-## ⏰ Special Time Handling
+## Special Time Handling
 
-### 🌙 Midnight-Spanning Periods
-- **Period**: 20:00-00:00 (8 PM to midnight)
-- **Attribution**: Assigned to the date of 20:00 reading
+### Midnight-Spanning Periods
+- **Period**: 20:00–00:00 (8 PM to midnight)
+- **Attribution**: Assigned to the date of the 20:00 reading (the period’s start)
 - **Example**: 2024-01-15 20:00 to 2024-01-16 00:00 → attributed to 2024-01-15
-- **Rationale**: Keep late evening ridership with the correct day
+- **Rationale**: Differences are computed between consecutive cumulative readings; the ridership between 20:00 and 00:00 properly belongs to the day anchored at the 20:00 start time (matches `process_turnstile_data.py`).
 
 ## 📊 Summary Table
 
