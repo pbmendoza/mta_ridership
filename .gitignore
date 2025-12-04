@@ -210,3 +210,7 @@ cython_debug/
 
 # Logs directory for script outputs
 logs/
+
+
+# Data Directory
+api_data_download/data
