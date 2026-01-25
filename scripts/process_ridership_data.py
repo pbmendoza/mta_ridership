@@ -74,8 +74,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--filename",
         type=str,
-        default="ridership_2025.csv",
-        help="The name of the staged ridership CSV file to process."
+        default="2025.csv",
+        help="The name of the staged ridership CSV file to process (e.g., 2025.csv, ridership_2020_2024.csv)."
     )
     args = parser.parse_args()
 

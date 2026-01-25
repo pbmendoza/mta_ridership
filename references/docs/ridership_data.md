@@ -9,8 +9,8 @@ The MTA Hourly Ridership datasets provide estimated entries at the subway statio
 ## 🗂️ Data Location (repo)
 
 - Raw files: `data/raw/ridership/`
-  - `ridership_2020_2024.csv`
-  - `ridership_2025.csv`
+  - `ridership_2020_2024.csv` — historical data (2020-2024)
+  - `2025.csv` — current year data (2025+, one file per year)
 - Provenance: `data/raw/ridership/metadata.yaml`
 
 ## 🔗 Data Sources (NY Open Data)

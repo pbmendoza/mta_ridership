@@ -9,7 +9,7 @@ Usage:
     python scripts/stage_ridership_data.py --filename ridership_2020_2024.csv
     python scripts/stage_ridership_data.py --filename YOUR_FILE.csv
 
-If no filename is provided, it defaults to 'ridership_2025.csv'. Other available are 'ridership_2020_2024.csv'.
+If no filename is provided, it defaults to '2025.csv'. Other available: 'ridership_2020_2024.csv' (historical).
 """
 import argparse
 from pathlib import Path
@@ -105,8 +105,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--filename",
         type=str,
-        default="ridership_2025.csv",
-        help="The name of the ridership CSV file to process."
+        default="2025.csv",
+        help="The name of the raw ridership CSV file to process (e.g., 2025.csv, ridership_2020_2024.csv)."
     )
     args = parser.parse_args()
 

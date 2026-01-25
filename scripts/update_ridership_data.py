@@ -3,10 +3,11 @@
 
 Key behaviors:
 - Reads the year→dataset_id mapping from ``references/dataset_id_on_nyopendata.json``.
-- Maintains one CSV per year under ``data/raw/ridership/<year>.csv``.
+- Maintains one CSV per year under ``data/raw/ridership/<year>.csv`` for 2025+.
+- Years before 2025 are skipped (use ``ridership_2020_2024.csv`` for historical data).
 - For the current year (the max key in the mapping), it appends only new rows
   based on the last timestamp fetched.
-- For prior years, it compares API row counts to the local file; if counts
+- For prior years (2025+), it compares API row counts to the local file; if counts
   match, it skips downloading. Otherwise, it refreshes the entire year.
 - Creates any missing yearly CSVs automatically.
 - Writes per-year state to ``data/raw/ridership/auto/<year>.yaml`` and updates
@@ -617,6 +618,10 @@ def main() -> int:
     results: List[Dict[str, object]] = []
     try:
         for year in years:
+            # Skip years before 2025 - they use the combined ridership_2020_2024.csv file
+            if year < 2025:
+                print(f"{year}: skipped (use ridership_2020_2024.csv for historical data)")
+                continue
             dataset_id = mapping[year]
             result = process_year(
                 year=year,
