@@ -63,6 +63,36 @@ fi
 PYTHON_CMD=$(command -v python3 || command -v python)
 echo "Using Python: $PYTHON_CMD"
 
+# Step 0: Clean intermediate and output directories
+print_header "Step 0: Cleaning Intermediate & Output Directories"
+print_step "Removing previous staging, processed, and results files..."
+print_step "(If the pipeline fails, this run's output will still be available for investigation)"
+
+# Clean ridership staging (but preserve turnstile combined file — it's expensive to regenerate)
+if [ -d "data/staging/ridership" ]; then
+    STAGING_COUNT=$(find data/staging/ridership -type f -name "*.csv" | wc -l | tr -d ' ')
+    rm -f data/staging/ridership/*.csv
+    print_step "Cleaned data/staging/ridership/ ($STAGING_COUNT files)"
+fi
+
+# Clean processed ridership
+if [ -d "data/processed/ridership" ]; then
+    PROCESSED_COUNT=$(find data/processed/ridership -type f -name "*.csv" | wc -l | tr -d ' ')
+    rm -f data/processed/ridership/*.csv
+    print_step "Cleaned data/processed/ridership/ ($PROCESSED_COUNT files)"
+fi
+
+# Clean results
+for dir in results/baseline results/ridership results/final; do
+    if [ -d "$dir" ]; then
+        RESULT_COUNT=$(find "$dir" -type f -name "*.csv" | wc -l | tr -d ' ')
+        rm -f "$dir"/*.csv
+        print_step "Cleaned $dir/ ($RESULT_COUNT files)"
+    fi
+done
+
+print_step "Cleanup complete — starting fresh"
+
 # Step 1: Stage Raw Data
 print_header "Step 1: Staging Raw Data"
 
