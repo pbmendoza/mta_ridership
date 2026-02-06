@@ -170,6 +170,30 @@ def merge_with_baseline(
     return merged_df
 
 
+def filter_total_day_group(
+    ridership_df: pd.DataFrame,
+    logger: logging.Logger
+) -> pd.DataFrame:
+    """Use only full-month totals when day-group rows are present.
+
+    Baseline files contain monthly totals by month and geography only, so
+    baseline comparison metrics are currently defined against `day_group=total`.
+    """
+    if 'day_group' not in ridership_df.columns:
+        return ridership_df
+
+    original_count = len(ridership_df)
+    filtered_df = ridership_df[ridership_df['day_group'] == 'total'].copy()
+    if filtered_df.empty:
+        raise ValueError("Ridership data has 'day_group' but contains no 'total' rows.")
+
+    logger.info(
+        f"  - Filtered ridership to day_group='total': "
+        f"{len(filtered_df):,} of {original_count:,} records"
+    )
+    return filtered_df
+
+
 def process_geographic_level(
     level: str,
     base_dir: Path,
@@ -196,6 +220,8 @@ def process_geographic_level(
     ridership_df, baseline_df = load_data_pair(
         ridership_path, baseline_path, level, logger
     )
+
+    ridership_df = filter_total_day_group(ridership_df, logger)
     
     # Merge and calculate comparisons
     final_df = merge_with_baseline(

@@ -182,9 +182,10 @@ The updated `stage_turnstile_data.py` processes files in batches:
 - `monthly_baseline_nyc.csv`: `nyc`, `month`, `entries`, `exits`
 
 #### Modern Ridership Schemas (`results/ridership/`)
-- `monthly_ridership_station.csv`: `complex_id`, `year`, `month`, `period`, `ridership`, `omny_pct`
-- `monthly_ridership_puma.csv`: `puma`, `year`, `month`, `period`, `ridership`, `omny_pct`
-- `monthly_ridership_nyc.csv`: `year`, `month`, `period`, `ridership`, `omny_pct`
+- `monthly_ridership_station.csv`: `complex_id`, `year`, `month`, `period`, `day_group`, `ridership`, `omny_pct`
+- `monthly_ridership_puma.csv`: `puma`, `year`, `month`, `period`, `day_group`, `ridership`, `omny_pct`
+- `monthly_ridership_nyc.csv`: `year`, `month`, `period`, `day_group`, `ridership`, `omny_pct`
+  - `day_group` values: `total`, `weekday`, `weekend`
 
 ## Execution Time
 

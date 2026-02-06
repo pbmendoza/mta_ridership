@@ -37,6 +37,8 @@ from datetime import datetime
 from typing import List
 import calendar
 
+DAY_GROUP_ORDER = ['total', 'weekday', 'weekend']
+
 
 def find_project_root() -> Path:
     """Find the project root by looking for .git directory."""
@@ -173,15 +175,23 @@ def calculate_monthly_metrics(df: pd.DataFrame, logger: logging.Logger) -> pd.Da
         DataFrame with monthly metrics by station
     """
     # Note: year and month columns are already added by filter_incomplete_months
-    
-    # Group by station, year, month, and payment method
-    monthly_by_method = df.groupby(
-        ['station_complex_id', 'year', 'month', 'payment_method']
+    # Derive weekday/weekend buckets, then add a derived total bucket.
+    by_day_group = df.copy()
+    by_day_group['day_group'] = by_day_group['date'].dt.dayofweek.map(
+        lambda day_num: 'weekday' if day_num < 5 else 'weekend'
+    )
+    by_total = by_day_group.copy()
+    by_total['day_group'] = 'total'
+    expanded_df = pd.concat([by_day_group, by_total], ignore_index=True)
+
+    # Group by station, year, month, day bucket, and payment method
+    monthly_by_method = expanded_df.groupby(
+        ['station_complex_id', 'year', 'month', 'day_group', 'payment_method']
     )['ridership'].sum().reset_index()
     
     # Pivot to get payment methods as columns
     monthly_pivot = monthly_by_method.pivot_table(
-        index=['station_complex_id', 'year', 'month'],
+        index=['station_complex_id', 'year', 'month', 'day_group'],
         columns='payment_method',
         values='ridership',
         fill_value=0
@@ -189,7 +199,7 @@ def calculate_monthly_metrics(df: pd.DataFrame, logger: logging.Logger) -> pd.Da
     
     # Calculate total ridership
     payment_columns = [col for col in monthly_pivot.columns 
-                      if col not in ['station_complex_id', 'year', 'month']]
+                      if col not in ['station_complex_id', 'year', 'month', 'day_group']]
     monthly_pivot['ridership'] = monthly_pivot[payment_columns].sum(axis=1)
     
     # Calculate OMNY percentage
@@ -197,6 +207,7 @@ def calculate_monthly_metrics(df: pd.DataFrame, logger: logging.Logger) -> pd.Da
         monthly_pivot['omny_pct'] = (
             monthly_pivot['OMNY'] / monthly_pivot['ridership'] * 100
         ).round(2)
+        monthly_pivot.loc[monthly_pivot['ridership'] == 0, 'omny_pct'] = 0.0
     else:
         monthly_pivot['omny_pct'] = 0.0
     
@@ -204,8 +215,19 @@ def calculate_monthly_metrics(df: pd.DataFrame, logger: logging.Logger) -> pd.Da
     monthly_pivot['period'] = pd.to_datetime(
         monthly_pivot[['year', 'month']].assign(day=1)
     ).dt.strftime('%Y-%m-%d')
+
+    # Keep the output ordering stable and explicit.
+    monthly_pivot['day_group'] = pd.Categorical(
+        monthly_pivot['day_group'],
+        categories=DAY_GROUP_ORDER,
+        ordered=True
+    )
+    monthly_pivot = monthly_pivot.sort_values(
+        ['station_complex_id', 'year', 'month', 'day_group']
+    ).reset_index(drop=True)
+    monthly_pivot['day_group'] = monthly_pivot['day_group'].astype(str)
     
-    logger.info(f"Calculated metrics for {len(monthly_pivot):,} station-month combinations")
+    logger.info(f"Calculated metrics for {len(monthly_pivot):,} station-month-day_group combinations")
     
     return monthly_pivot
 
@@ -237,22 +259,24 @@ def create_complete_station_month_grid(
     unique_periods = monthly_data[['year', 'month', 'period']].drop_duplicates()
     logger.info(f"Found {len(unique_periods)} unique year-month periods")
     
-    # Create complete grid of all stations x all periods
+    # Create complete grid of all stations x all periods x all day buckets
     complete_grid = pd.DataFrame()
     for _, period in unique_periods.iterrows():
-        period_df = pd.DataFrame({
-            'station_complex_id': all_complex_ids,
-            'year': period['year'],
-            'month': period['month'],
-            'period': period['period']
-        })
-        complete_grid = pd.concat([complete_grid, period_df], ignore_index=True)
+        for day_group in DAY_GROUP_ORDER:
+            period_df = pd.DataFrame({
+                'station_complex_id': all_complex_ids,
+                'year': period['year'],
+                'month': period['month'],
+                'period': period['period'],
+                'day_group': day_group,
+            })
+            complete_grid = pd.concat([complete_grid, period_df], ignore_index=True)
     
-    logger.info(f"Created complete grid with {len(complete_grid):,} station-month combinations")
+    logger.info(f"Created complete grid with {len(complete_grid):,} station-month-day_group combinations")
     
     # Merge with actual data
     # First, prepare the columns to merge
-    merge_cols = ['station_complex_id', 'year', 'month', 'period']
+    merge_cols = ['station_complex_id', 'year', 'month', 'period', 'day_group']
     data_cols = [col for col in monthly_data.columns if col not in merge_cols]
     
     # Perform left join to keep all station-month combinations
@@ -276,7 +300,7 @@ def create_complete_station_month_grid(
     
     # Log statistics
     missing_count = (final_data['ridership'] == 0).sum()
-    logger.info(f"Filled {missing_count:,} station-month combinations with zero ridership")
+    logger.info(f"Filled {missing_count:,} station-month-day_group combinations with zero ridership")
     
     return final_data
 
@@ -318,7 +342,7 @@ def aggregate_by_puma(
                       if col.isupper() and col not in ['PUMA']]
     
     # Group by PUMA and time
-    puma_grouped = df_with_puma.groupby(['PUMA', 'year', 'month', 'period']).agg({
+    puma_grouped = df_with_puma.groupby(['PUMA', 'year', 'month', 'period', 'day_group']).agg({
         **{col: 'sum' for col in payment_columns},
         'ridership': 'sum'
     }).reset_index()
@@ -331,7 +355,7 @@ def aggregate_by_puma(
     else:
         puma_grouped['omny_pct'] = 0.0
     
-    logger.info(f"Aggregated to {len(puma_grouped):,} PUMA-month combinations")
+    logger.info(f"Aggregated to {len(puma_grouped):,} PUMA-month-day_group combinations")
     
     return puma_grouped
 
@@ -351,7 +375,7 @@ def aggregate_to_nyc(station_df: pd.DataFrame, logger: logging.Logger) -> pd.Dat
                       if col.isupper() and col not in ['PUMA']]
     
     # Group by time periods only
-    nyc_grouped = station_df.groupby(['year', 'month', 'period']).agg({
+    nyc_grouped = station_df.groupby(['year', 'month', 'period', 'day_group']).agg({
         **{col: 'sum' for col in payment_columns},
         'ridership': 'sum'
     }).reset_index()
@@ -367,7 +391,7 @@ def aggregate_to_nyc(station_df: pd.DataFrame, logger: logging.Logger) -> pd.Dat
     # Add NYC identifier
     nyc_grouped.insert(0, 'geography', 'New York City')
     
-    logger.info(f"Aggregated to {len(nyc_grouped):,} NYC-month combinations")
+    logger.info(f"Aggregated to {len(nyc_grouped):,} NYC-month-day_group combinations")
     
     return nyc_grouped
 
@@ -383,7 +407,7 @@ def format_output_columns(df: pd.DataFrame, level: str) -> pd.DataFrame:
         Formatted DataFrame ready for output
     """
     # Define column order based on level
-    base_columns = ['year', 'month', 'period', 'ridership', 'omny_pct']
+    base_columns = ['year', 'month', 'period', 'day_group', 'ridership', 'omny_pct']
     
     if level == 'station':
         # Rename station_complex_id to complex_id for consistency
@@ -401,7 +425,7 @@ def format_output_columns(df: pd.DataFrame, level: str) -> pd.DataFrame:
     column_order = id_columns + base_columns
     
     # Select and reorder columns
-    return df[column_order]
+    return df[column_order].copy()
 
 
 def save_results(
@@ -432,6 +456,22 @@ def save_results(
     
     for level, df, filename in outputs:
         formatted_df = format_output_columns(df, level)
+
+        if 'day_group' in formatted_df.columns:
+            formatted_df['day_group'] = pd.Categorical(
+                formatted_df['day_group'],
+                categories=DAY_GROUP_ORDER,
+                ordered=True
+            )
+            if level == 'station':
+                sort_cols = ['year', 'month', 'complex_id', 'day_group']
+            elif level == 'puma':
+                sort_cols = ['year', 'month', 'puma', 'day_group']
+            else:
+                sort_cols = ['year', 'month', 'day_group']
+            formatted_df = formatted_df.sort_values(sort_cols, ignore_index=True)
+            formatted_df['day_group'] = formatted_df['day_group'].astype(str)
+
         output_path = output_dir / filename
         formatted_df.to_csv(output_path, index=False)
         logger.info(f"Saved {level} results to {output_path.relative_to(output_dir.parent.parent)}")

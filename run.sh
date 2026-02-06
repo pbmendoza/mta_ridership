@@ -59,8 +59,16 @@ if ! command -v python3 &> /dev/null && ! command -v python &> /dev/null; then
     exit 1
 fi
 
-# Use python3 if available, otherwise python
-PYTHON_CMD=$(command -v python3 || command -v python)
+# Select an interpreter that can import required dependencies.
+PYTHON_CMD=""
+if command -v python3 &> /dev/null && python3 -c "import pandas" &> /dev/null; then
+    PYTHON_CMD=$(command -v python3)
+elif command -v python &> /dev/null && python -c "import pandas" &> /dev/null; then
+    PYTHON_CMD=$(command -v python)
+else
+    print_error "Neither python3 nor python has required dependencies (missing pandas)."
+    exit 1
+fi
 echo "Using Python: $PYTHON_CMD"
 
 # Step 0: Clean intermediate and output directories
@@ -96,6 +104,20 @@ print_step "Cleanup complete — starting fresh"
 # Step 1: Stage Raw Data
 print_header "Step 1: Staging Raw Data"
 
+# Collect all raw ridership CSVs to stage/process in this run
+RIDERSHIP_SOURCE_DIR="data/raw/ridership"
+RIDERSHIP_FILES=()
+while IFS= read -r csv_file; do
+    RIDERSHIP_FILES+=("$(basename "$csv_file")")
+done < <(find "$RIDERSHIP_SOURCE_DIR" -maxdepth 1 -type f -name "*.csv" | sort)
+
+if [ ${#RIDERSHIP_FILES[@]} -eq 0 ]; then
+    print_error "No ridership CSV files found in $RIDERSHIP_SOURCE_DIR"
+    exit 1
+fi
+
+print_step "Found ${#RIDERSHIP_FILES[@]} ridership file(s): ${RIDERSHIP_FILES[*]}"
+
 # Check if turnstile combined file already exists
 TURNSTILE_COMBINED="data/staging/turnstile/turnstile_combined.csv"
 SKIP_TURNSTILE=false
@@ -123,11 +145,14 @@ fi
 if [ "$SKIP_TURNSTILE" = true ]; then
     # Only run ridership staging
     print_step "Staging ridership data..."
-    $PYTHON_CMD scripts/stage_ridership_data.py
-    if [ $? -ne 0 ]; then
-        print_error "Ridership staging failed!"
-        exit 1
-    fi
+    for ridership_file in "${RIDERSHIP_FILES[@]}"; do
+        print_step "Staging ridership file: $ridership_file"
+        $PYTHON_CMD scripts/stage_ridership_data.py --filename "$ridership_file"
+        if [ $? -ne 0 ]; then
+            print_error "Ridership staging failed for $ridership_file!"
+            exit 1
+        fi
+    done
 else
     # Run both staging scripts in parallel
     print_step "Running staging scripts in parallel..."
@@ -140,7 +165,11 @@ else
     
     (
         print_step "Staging ridership data..."
-        $PYTHON_CMD scripts/stage_ridership_data.py 2>&1 | sed 's/^/  [Ridership] /'
+        set -o pipefail
+        for ridership_file in "${RIDERSHIP_FILES[@]}"; do
+            print_step "Staging ridership file: $ridership_file"
+            $PYTHON_CMD scripts/stage_ridership_data.py --filename "$ridership_file" 2>&1 | sed 's/^/  [Ridership] /'
+        done
     ) &
     PID2=$!
     
@@ -180,7 +209,11 @@ PID1=$!
 
 (
     print_step "Processing ridership data..."
-    $PYTHON_CMD scripts/process_ridership_data.py 2>&1 | sed 's/^/  [Ridership] /'
+    set -o pipefail
+    for ridership_file in "${RIDERSHIP_FILES[@]}"; do
+        print_step "Processing ridership file: $ridership_file"
+        $PYTHON_CMD scripts/process_ridership_data.py --filename "$ridership_file" 2>&1 | sed 's/^/  [Ridership] /'
+    done
 ) &
 PID2=$!
 
