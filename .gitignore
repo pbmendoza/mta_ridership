@@ -1,3 +1,6 @@
+# 
+.vscode/
+.claude/
 
 # Raw input files
 data/*
