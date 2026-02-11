@@ -19,16 +19,38 @@ from __future__ import annotations
 
 import argparse
 import calendar
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import csv
+from dataclasses import dataclass
 import json
 import os
+import sqlite3
 import sys
+from threading import Lock
 import time
 from datetime import date
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 
 import requests
+try:
+    from rich.console import Console
+    from rich.progress import (
+        BarColumn,
+        Progress,
+        SpinnerColumn,
+        TaskID,
+        TaskProgressColumn,
+        TextColumn,
+        TimeElapsedColumn,
+        TimeRemainingColumn,
+    )
+    RICH_AVAILABLE = True
+except ImportError:
+    Console = None
+    Progress = None
+    TaskID = int  # type: ignore[assignment]
+    RICH_AVAILABLE = False
 
 # Default credentials (can be overridden via env/CLI).
 DEFAULT_APP_TOKEN = os.getenv("SOCRATA_APP_TOKEN", "PSOinhnLdpy9yMfRdcYzUsJNy")
@@ -37,6 +59,8 @@ DEFAULT_SECRET_TOKEN = os.getenv("SOCRATA_SECRET_TOKEN", "4MWd4bOFT-e8fv7YrXh427
 DEFAULT_PAGE_SIZE = 50000
 REQUEST_TIMEOUT = 60
 MAX_RETRIES = 5
+DEFAULT_MAX_WORKERS = max(1, (os.cpu_count() or 2) - 1)
+LINE_COUNT_CHUNK_SIZE = 1024 * 1024
 
 # Column order for CSV output.
 COLUMN_ORDER = [
@@ -53,6 +77,123 @@ COLUMN_ORDER = [
     "longitude",
     "georeference",
 ]
+
+PRINT_LOCK = Lock()
+
+
+@dataclass(frozen=True)
+class DownloadTask:
+    """Represents one year/month download job."""
+
+    year: int
+    month: int
+    endpoint: str
+
+
+@dataclass(frozen=True)
+class DownloadResult:
+    """Represents the result of one year/month download job."""
+
+    status: str
+    message: str
+
+
+def log(message: str) -> None:
+    """Print a single log line safely across worker threads."""
+    with PRINT_LOCK:
+        print(message, flush=True)
+
+
+class DownloadUI:
+    """Thread-safe progress UI with rich and plain-text fallback."""
+
+    def __init__(self, enable_rich: bool = True) -> None:
+        self.use_rich = bool(enable_rich and RICH_AVAILABLE)
+        self._lock = Lock()
+        self._task_ids: Dict[Tuple[int, int], TaskID] = {}
+        self.console = Console() if self.use_rich else None
+        self.progress = (
+            Progress(
+                TextColumn("{task.description:<9}"),
+                SpinnerColumn(style="cyan"),
+                BarColumn(bar_width=24),
+                TaskProgressColumn(),
+                TextColumn("{task.completed:>12,.0f}/{task.total:>12,.0f}", justify="right"),
+                TimeElapsedColumn(),
+                TimeRemainingColumn(),
+                TextColumn("{task.fields[status]}", justify="left"),
+                console=self.console,
+                transient=False,
+            )
+            if self.use_rich
+            else None
+        )
+
+    def __enter__(self) -> "DownloadUI":
+        if self.progress is not None:
+            self.progress.start()
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        if self.progress is not None:
+            self.progress.stop()
+
+    def _key(self, task: DownloadTask) -> Tuple[int, int]:
+        return (task.year, task.month)
+
+    def add_tasks(self, tasks: List[DownloadTask]) -> None:
+        if self.progress is None:
+            return
+        with self._lock:
+            for task in tasks:
+                label = f"{task.year}/{task.month:02d}"
+                task_id = self.progress.add_task(
+                    description=label,
+                    total=100,
+                    completed=0,
+                    status="queued",
+                )
+                self._task_ids[self._key(task)] = task_id
+
+    def _update(self, task: DownloadTask, **kwargs) -> None:
+        if self.progress is None:
+            return
+        task_id = self._task_ids.get(self._key(task))
+        if task_id is None:
+            return
+        with self._lock:
+            self.progress.update(task_id, **kwargs)
+
+    def set_status(self, task: DownloadTask, status: str) -> None:
+        self._update(task, status=status)
+
+    def set_total(self, task: DownloadTask, total_rows: int) -> None:
+        self._update(task, total=max(total_rows, 1), completed=0)
+
+    def set_progress(self, task: DownloadTask, completed: int, total_rows: int) -> None:
+        self._update(task, total=max(total_rows, 1), completed=completed)
+
+    def mark_terminal(self, task: DownloadTask, status: str, total_rows: Optional[int] = None) -> None:
+        updates: Dict[str, object] = {"status": status}
+        if total_rows is not None:
+            updates["total"] = max(total_rows, 1)
+            updates["completed"] = max(total_rows, 1)
+        self._update(task, **updates)
+
+    def log(self, message: str) -> None:
+        if self.progress is None:
+            log(message)
+            return
+        with self._lock:
+            self.progress.console.print(message)
+
+
+def positive_int(value: str) -> int:
+    """argparse type for positive integers."""
+    parsed = int(value)
+    if parsed < 1:
+        raise argparse.ArgumentTypeError("Value must be >= 1.")
+    return parsed
 
 
 def repo_root() -> Path:
@@ -96,6 +237,12 @@ def compute_date_range(year: int, month: int) -> Tuple[str, str]:
     else:
         end = date(year, month + 1, 1)
     return start.isoformat() + "T00:00:00", end.isoformat() + "T00:00:00"
+
+
+def get_month_where_clause(year: int, month: int) -> str:
+    """Build SoQL where clause for one month."""
+    start_ts, end_ts = compute_date_range(year, month)
+    return f"transit_timestamp >= '{start_ts}' AND transit_timestamp < '{end_ts}'"
 
 
 def build_headers(app_token: str, secret_token: str) -> Dict[str, str]:
@@ -204,21 +351,111 @@ def normalize_row(row: Dict[str, str], header: List[str]) -> Dict[str, str]:
     return cleaned
 
 
+def count_csv_data_rows(csv_path: Path) -> int:
+    """Count data rows in a CSV file without loading the file into memory."""
+    newline_count = 0
+    saw_any_bytes = False
+    last_byte = b""
+
+    with csv_path.open("rb") as handle:
+        while True:
+            chunk = handle.read(LINE_COUNT_CHUNK_SIZE)
+            if not chunk:
+                break
+            saw_any_bytes = True
+            newline_count += chunk.count(b"\n")
+            last_byte = chunk[-1:]
+
+    if not saw_any_bytes:
+        return 0
+
+    # If the file doesn't end with a newline, include the trailing line.
+    if last_byte != b"\n":
+        newline_count += 1
+
+    # Subtract one line for CSV header.
+    return max(0, newline_count - 1)
+
+
+def deduplicate_csv_file(csv_path: Path) -> Tuple[int, int]:
+    """Remove exact duplicate rows from a CSV using disk-backed SQLite.
+
+    Returns:
+        Tuple of (rows_before_dedup, rows_after_dedup).
+    """
+    sqlite_path = csv_path.with_suffix(csv_path.suffix + ".dedupe.sqlite")
+    output_path = csv_path.with_suffix(csv_path.suffix + ".dedupe.tmp")
+    safe_unlink(sqlite_path)
+    safe_unlink(output_path)
+
+    total_rows = 0
+    unique_rows = 0
+
+    try:
+        with csv_path.open("r", encoding="utf-8", newline="") as source:
+            reader = csv.reader(source)
+            header = next(reader, None)
+            if header is None:
+                return 0, 0
+
+            column_names = [f"c{i}" for i in range(len(header))]
+            column_sql = ", ".join(column_names)
+            placeholder_sql = ", ".join(["?"] * len(column_names))
+            table_sql = (
+                "CREATE TABLE rows ("
+                "seq INTEGER PRIMARY KEY AUTOINCREMENT, "
+                + ", ".join(f"{name} TEXT" for name in column_names)
+                + f", UNIQUE ({column_sql})"
+                + ")"
+            )
+            insert_sql = f"INSERT OR IGNORE INTO rows ({column_sql}) VALUES ({placeholder_sql})"
+
+            conn = sqlite3.connect(str(sqlite_path))
+            try:
+                conn.execute("PRAGMA journal_mode=OFF")
+                conn.execute("PRAGMA synchronous=OFF")
+                conn.execute("PRAGMA temp_store=FILE")
+                conn.execute(table_sql)
+
+                for row in reader:
+                    total_rows += 1
+                    if len(row) < len(column_names):
+                        row = row + [""] * (len(column_names) - len(row))
+                    elif len(row) > len(column_names):
+                        row = row[: len(column_names)]
+                    conn.execute(insert_sql, row)
+
+                conn.commit()
+                unique_rows = int(conn.execute("SELECT COUNT(1) FROM rows").fetchone()[0])
+
+                with output_path.open("w", encoding="utf-8", newline="") as out_handle:
+                    writer = csv.writer(out_handle)
+                    writer.writerow(header)
+                    select_sql = f"SELECT {column_sql} FROM rows ORDER BY seq ASC"
+                    for db_row in conn.execute(select_sql):
+                        writer.writerow(db_row)
+            finally:
+                conn.close()
+
+        output_path.replace(csv_path)
+        return total_rows, unique_rows
+    finally:
+        safe_unlink(sqlite_path)
+        safe_unlink(output_path)
+
+
 def download_month(
     session: requests.Session,
     endpoint: str,
     headers: Dict[str, str],
-    year: int,
-    month: int,
+    where_clause: str,
+    expected_rows: int,
     output_path: Path,
     page_size: int,
+    progress_callback: Optional[Callable[[int, int], None]] = None,
 ) -> Tuple[bool, int]:
     """Download data for a single month. Returns (success, row_count)."""
-    start_ts, end_ts = compute_date_range(year, month)
-    where_clause = f"transit_timestamp >= '{start_ts}' AND transit_timestamp < '{end_ts}'"
-
-    total_rows = count_rows(session, endpoint, headers, where_clause)
-    if total_rows <= 0:
+    if expected_rows <= 0:
         return False, 0
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -250,15 +487,147 @@ def download_month(
                     continue
                 writer.writerow(normalize_row(row, header))
                 written += 1
-                progress = min(100.0, (written / total_rows) * 100)
-                print(f"\r   Progress: {written}/{total_rows} ({progress:5.1f}%)", end="", flush=True)
 
             offset += len(rows)
+            if progress_callback is not None:
+                progress_callback(written, expected_rows)
             if len(rows) < page_size:
                 break
 
-    print()  # Finish progress line
+    if progress_callback is not None:
+        progress_callback(written, expected_rows)
     return True, written
+
+
+def safe_unlink(path: Path) -> None:
+    """Remove file if present."""
+    if path.exists():
+        path.unlink()
+
+
+def process_task(
+    task: DownloadTask,
+    headers: Dict[str, str],
+    page_size: int,
+    force: bool,
+    ui: DownloadUI,
+) -> DownloadResult:
+    """Process one monthly download task with robust completeness checks."""
+    year, month = task.year, task.month
+    month_label = f"{year}/{month:02d}"
+    output_path = get_output_path(year, month)
+    temp_path = output_path.with_suffix(output_path.suffix + ".tmp")
+    where_clause = get_month_where_clause(year, month)
+
+    session = requests.Session()
+    try:
+        ui.set_status(task, "counting rows")
+        total_rows = count_rows(session, task.endpoint, headers, where_clause)
+        if total_rows <= 0:
+            safe_unlink(temp_path)
+            safe_unlink(output_path)
+            ui.mark_terminal(task, "no data", total_rows=1)
+            return DownloadResult("incomplete", f"⚠️  {month_label}: No data found (removed local file if present).")
+
+        ui.set_total(task, total_rows)
+        ui.set_status(task, "checking completeness")
+        has_last_day_data = check_last_day_has_data(session, task.endpoint, headers, year, month)
+        if not has_last_day_data:
+            safe_unlink(temp_path)
+            safe_unlink(output_path)
+            ui.mark_terminal(task, "incomplete", total_rows=total_rows)
+            return DownloadResult(
+                "incomplete",
+                f"⚠️  {month_label}: Incomplete (no data on last day); removed local file if present.",
+            )
+
+        if output_path.exists() and not force:
+            ui.set_status(task, "validating existing")
+            local_rows = count_csv_data_rows(output_path)
+            if local_rows == total_rows:
+                ui.mark_terminal(task, "skipped", total_rows=total_rows)
+                return DownloadResult(
+                    "skipped",
+                    f"⏭️  {month_label}: File complete and row-count matched ({local_rows:,}), skipping.",
+                )
+            ui.log(
+                f"♻️  {month_label}: Existing row-count mismatch "
+                f"(local {local_rows:,} vs API {total_rows:,}), re-downloading..."
+            )
+        elif force and output_path.exists():
+            ui.log(f"♻️  {month_label}: --force enabled, re-downloading...")
+        else:
+            ui.set_status(task, "downloading")
+
+        ui.set_status(task, "downloading")
+        safe_unlink(temp_path)
+        success, row_count = download_month(
+            session=session,
+            endpoint=task.endpoint,
+            headers=headers,
+            where_clause=where_clause,
+            expected_rows=total_rows,
+            output_path=temp_path,
+            page_size=page_size,
+            progress_callback=lambda written, expected: ui.set_progress(task, written, expected),
+        )
+
+        if not success or row_count == 0:
+            safe_unlink(temp_path)
+            safe_unlink(output_path)
+            ui.mark_terminal(task, "empty", total_rows=total_rows)
+            return DownloadResult("incomplete", f"⚠️  {month_label}: No rows written; removed local file.")
+
+        if row_count != total_rows:
+            safe_unlink(temp_path)
+            ui.mark_terminal(task, "error", total_rows=total_rows)
+            return DownloadResult(
+                "errors",
+                f"❌ {month_label}: Downloaded row mismatch (written {row_count:,} vs expected {total_rows:,}).",
+            )
+
+        ui.set_status(task, "deduplicating")
+        rows_before_dedup, rows_after_dedup = deduplicate_csv_file(temp_path)
+        if rows_before_dedup != row_count:
+            safe_unlink(temp_path)
+            ui.mark_terminal(task, "error", total_rows=total_rows)
+            return DownloadResult(
+                "errors",
+                (
+                    f"❌ {month_label}: On-disk row mismatch before dedupe "
+                    f"(disk {rows_before_dedup:,} vs written {row_count:,})."
+                ),
+            )
+
+        duplicate_rows = rows_before_dedup - rows_after_dedup
+        if duplicate_rows > 0:
+            ui.log(f"🧹 {month_label}: Removed {duplicate_rows:,} duplicate row(s).")
+
+        ui.set_status(task, "validating")
+        if rows_after_dedup != total_rows:
+            safe_unlink(temp_path)
+            ui.mark_terminal(task, "error", total_rows=total_rows)
+            return DownloadResult(
+                "errors",
+                (
+                    f"❌ {month_label}: Final row mismatch after dedupe "
+                    f"(disk {rows_after_dedup:,} vs API {total_rows:,})."
+                ),
+            )
+
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        temp_path.replace(output_path)
+        ui.mark_terminal(task, "done", total_rows=total_rows)
+        return DownloadResult(
+            "downloaded",
+            f"✅ {month_label}: Saved {row_count:,} rows to {output_path.relative_to(repo_root())}",
+        )
+    except Exception as exc:
+        safe_unlink(temp_path)
+        ui.mark_terminal(task, "error", total_rows=1)
+        return DownloadResult("errors", f"❌ {month_label}: {exc}")
+    finally:
+        session.close()
 
 
 def parse_args() -> argparse.Namespace:
@@ -287,6 +656,15 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=DEFAULT_PAGE_SIZE,
         help=f"Rows per page for SODA pagination (default: {DEFAULT_PAGE_SIZE}).",
+    )
+    parser.add_argument(
+        "--max-workers",
+        type=positive_int,
+        default=DEFAULT_MAX_WORKERS,
+        help=(
+            "Maximum concurrent month downloads. "
+            f"Default: cpu_count - 1 ({DEFAULT_MAX_WORKERS})."
+        ),
     )
     parser.add_argument(
         "--app-token",
@@ -323,67 +701,47 @@ def main() -> int:
     else:
         months = list(range(1, 13))
 
-    session = requests.Session()
     stats = {"downloaded": 0, "skipped": 0, "incomplete": 0, "errors": 0}
+    tasks: List[DownloadTask] = []
+    ui = DownloadUI(enable_rich=True)
 
-    try:
-        for year in sorted(years):
-            year_str = str(year)
-            if year_str not in dataset_ids:
-                print(f"⚠️  Year {year} not found in dataset config, skipping.")
+    if not ui.use_rich:
+        log("⚠️  rich is not installed. Install with: pip install rich")
+
+    for year in sorted(years):
+        year_str = str(year)
+        if year_str not in dataset_ids:
+            ui.log(f"⚠️  Year {year} not found in dataset config, skipping.")
+            continue
+
+        dataset_id = dataset_ids[year_str]
+        endpoint = get_soda_endpoint(dataset_id)
+
+        for month in months:
+            if is_future_month(year, month):
+                ui.log(f"⏭️  {year}/{month:02d}: Future month, skipping.")
+                stats["skipped"] += 1
                 continue
+            tasks.append(DownloadTask(year=year, month=month, endpoint=endpoint))
 
-            dataset_id = dataset_ids[year_str]
-            endpoint = get_soda_endpoint(dataset_id)
-
-            for month in months:
-                output_path = get_output_path(year, month)
-
-                # Skip future months
-                if is_future_month(year, month):
-                    print(f"⏭️  {year}/{month:02d}: Future month, skipping.")
-                    stats["skipped"] += 1
-                    continue
-
-                # Skip existing files unless --force
-                if output_path.exists() and not args.force:
-                    print(f"⏭️  {year}/{month:02d}: File exists, skipping.")
-                    stats["skipped"] += 1
-                    continue
-
-                print(f"🔄 {year}/{month:02d}: Downloading...")
-
-                try:
-                    success, row_count = download_month(
-                        session, endpoint, headers, year, month, output_path, args.page_size
-                    )
-
-                    if not success or row_count == 0:
-                        print(f"   ⚠️  No data found for {year}/{month:02d}.")
-                        if output_path.exists():
-                            output_path.unlink()
-                        stats["incomplete"] += 1
-                        continue
-
-                    # Check completeness: does the last day have data?
-                    if not check_last_day_has_data(session, endpoint, headers, year, month):
-                        print(f"   ⚠️  Incomplete data (no data for last day), removing file.")
-                        if output_path.exists():
-                            output_path.unlink()
-                        stats["incomplete"] += 1
-                        continue
-
-                    print(f"   ✅ Saved {row_count} rows to {output_path.relative_to(repo_root())}")
-                    stats["downloaded"] += 1
-
-                except Exception as exc:
-                    print(f"   ❌ Error: {exc}")
-                    if output_path.exists():
-                        output_path.unlink()
-                    stats["errors"] += 1
-
-    finally:
-        session.close()
+    if tasks:
+        max_workers = min(args.max_workers, len(tasks))
+        with ui:
+            ui.add_tasks(tasks)
+            ui.log(f"🧵 Running {len(tasks)} task(s) with max_workers={max_workers}")
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                futures = [
+                    executor.submit(process_task, task, headers, args.page_size, args.force, ui)
+                    for task in tasks
+                ]
+                for future in as_completed(futures):
+                    result = future.result()
+                    if result.status not in stats:
+                        stats["errors"] += 1
+                    else:
+                        stats[result.status] += 1
+                    if not ui.use_rich or result.status in {"errors", "incomplete"}:
+                        ui.log(result.message)
 
     # Print summary
     print()
