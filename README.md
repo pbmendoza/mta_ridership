@@ -103,13 +103,27 @@ Each file includes:
 - Comprehensive logging to `logs/` directory
 - Automatic project root detection via `.git` directory
 
+### Running the Pipeline
+
+Default execution runs the modern branch and final outputs, reusing existing baseline files:
+
+```bash
+python run_pipeline.py
+```
+
+To also regenerate the historical turnstile branch and baseline files:
+
+```bash
+python run_pipeline.py --include-historical
+```
+
 ### Adding New Data
 1. Place raw files in appropriate `data/raw/` subdirectory
 2. Update staging scripts if format differs
 3. Run full pipeline to regenerate results, e.g.:
 
 ```bash
-bash run.sh
+python run_pipeline.py
 ```
 
 ## 📊 Data Sources
