@@ -61,6 +61,14 @@ REQUEST_TIMEOUT = 60
 MAX_RETRIES = 5
 DEFAULT_MAX_WORKERS = max(1, (os.cpu_count() or 2) - 1)
 LINE_COUNT_CHUNK_SIZE = 1024 * 1024
+DEFAULT_DUPLICATE_SAMPLE_LIMIT = 5
+SODA_ORDER_CLAUSE = (
+    "transit_timestamp ASC, "
+    "station_complex_id ASC, "
+    "payment_method ASC, "
+    "fare_class_category ASC, "
+    ":id ASC"
+)
 
 # Column order for CSV output.
 COLUMN_ORDER = [
@@ -377,26 +385,28 @@ def count_csv_data_rows(csv_path: Path) -> int:
     return max(0, newline_count - 1)
 
 
-def deduplicate_csv_file(csv_path: Path) -> Tuple[int, int]:
-    """Remove exact duplicate rows from a CSV using disk-backed SQLite.
+def inspect_duplicate_rows(
+    csv_path: Path,
+    sample_limit: int = DEFAULT_DUPLICATE_SAMPLE_LIMIT,
+) -> Tuple[int, int, List[Dict[str, str]]]:
+    """Inspect exact duplicate CSV rows using disk-backed SQLite.
 
     Returns:
-        Tuple of (rows_before_dedup, rows_after_dedup).
+        Tuple of (rows_scanned, duplicate_row_count, duplicate_row_samples).
     """
-    sqlite_path = csv_path.with_suffix(csv_path.suffix + ".dedupe.sqlite")
-    output_path = csv_path.with_suffix(csv_path.suffix + ".dedupe.tmp")
+    sqlite_path = csv_path.with_suffix(csv_path.suffix + ".dupecheck.sqlite")
     safe_unlink(sqlite_path)
-    safe_unlink(output_path)
 
     total_rows = 0
-    unique_rows = 0
+    duplicate_rows = 0
+    duplicate_samples: List[Dict[str, str]] = []
 
     try:
         with csv_path.open("r", encoding="utf-8", newline="") as source:
             reader = csv.reader(source)
             header = next(reader, None)
             if header is None:
-                return 0, 0
+                return 0, 0, []
 
             column_names = [f"c{i}" for i in range(len(header))]
             column_sql = ", ".join(column_names)
@@ -405,10 +415,19 @@ def deduplicate_csv_file(csv_path: Path) -> Tuple[int, int]:
                 "CREATE TABLE rows ("
                 "seq INTEGER PRIMARY KEY AUTOINCREMENT, "
                 + ", ".join(f"{name} TEXT" for name in column_names)
-                + f", UNIQUE ({column_sql})"
+                + ", seen_count INTEGER NOT NULL DEFAULT 1, "
+                + f"UNIQUE ({column_sql})"
                 + ")"
             )
-            insert_sql = f"INSERT OR IGNORE INTO rows ({column_sql}) VALUES ({placeholder_sql})"
+            upsert_sql = (
+                f"INSERT INTO rows ({column_sql}, seen_count) VALUES ({placeholder_sql}, 1) "
+                f"ON CONFLICT ({column_sql}) DO UPDATE SET seen_count = seen_count + 1"
+            )
+            duplicate_count_sql = "SELECT COALESCE(SUM(seen_count - 1), 0) FROM rows"
+            sample_sql = (
+                f"SELECT {column_sql} FROM rows WHERE seen_count > 1 "
+                "ORDER BY seq ASC LIMIT ?"
+            )
 
             conn = sqlite3.connect(str(sqlite_path))
             try:
@@ -423,25 +442,24 @@ def deduplicate_csv_file(csv_path: Path) -> Tuple[int, int]:
                         row = row + [""] * (len(column_names) - len(row))
                     elif len(row) > len(column_names):
                         row = row[: len(column_names)]
-                    conn.execute(insert_sql, row)
+                    conn.execute(upsert_sql, row)
 
                 conn.commit()
-                unique_rows = int(conn.execute("SELECT COUNT(1) FROM rows").fetchone()[0])
-
-                with output_path.open("w", encoding="utf-8", newline="") as out_handle:
-                    writer = csv.writer(out_handle)
-                    writer.writerow(header)
-                    select_sql = f"SELECT {column_sql} FROM rows ORDER BY seq ASC"
-                    for db_row in conn.execute(select_sql):
-                        writer.writerow(db_row)
+                duplicate_rows = int(conn.execute(duplicate_count_sql).fetchone()[0])
+                if sample_limit > 0 and duplicate_rows > 0:
+                    for db_row in conn.execute(sample_sql, (sample_limit,)):
+                        duplicate_samples.append(
+                            {
+                                header[index]: (db_row[index] if db_row[index] is not None else "")
+                                for index in range(len(header))
+                            }
+                        )
             finally:
                 conn.close()
 
-        output_path.replace(csv_path)
-        return total_rows, unique_rows
+        return total_rows, duplicate_rows, duplicate_samples
     finally:
         safe_unlink(sqlite_path)
-        safe_unlink(output_path)
 
 
 def download_month(
@@ -469,7 +487,7 @@ def download_month(
         while True:
             params = {
                 "$where": where_clause,
-                "$order": "transit_timestamp ASC, station_complex_id ASC, payment_method ASC, fare_class_category ASC",
+                "$order": SODA_ORDER_CLAUSE,
                 "$limit": str(page_size),
                 "$offset": str(offset),
             }
@@ -510,6 +528,7 @@ def process_task(
     headers: Dict[str, str],
     page_size: int,
     force: bool,
+    verify_duplicates: bool,
     ui: DownloadUI,
 ) -> DownloadResult:
     """Process one monthly download task with robust completeness checks."""
@@ -586,34 +605,34 @@ def process_task(
                 f"❌ {month_label}: Downloaded row mismatch (written {row_count:,} vs expected {total_rows:,}).",
             )
 
-        ui.set_status(task, "deduplicating")
-        rows_before_dedup, rows_after_dedup = deduplicate_csv_file(temp_path)
-        if rows_before_dedup != row_count:
-            safe_unlink(temp_path)
-            ui.mark_terminal(task, "error", total_rows=total_rows)
-            return DownloadResult(
-                "errors",
-                (
-                    f"❌ {month_label}: On-disk row mismatch before dedupe "
-                    f"(disk {rows_before_dedup:,} vs written {row_count:,})."
-                ),
-            )
+        if verify_duplicates:
+            ui.set_status(task, "verifying duplicates")
+            rows_scanned, duplicate_rows, duplicate_samples = inspect_duplicate_rows(temp_path)
+            if rows_scanned != row_count:
+                safe_unlink(temp_path)
+                ui.mark_terminal(task, "error", total_rows=total_rows)
+                return DownloadResult(
+                    "errors",
+                    (
+                        f"❌ {month_label}: On-disk row mismatch during duplicate check "
+                        f"(disk {rows_scanned:,} vs written {row_count:,})."
+                    ),
+                )
 
-        duplicate_rows = rows_before_dedup - rows_after_dedup
-        if duplicate_rows > 0:
-            ui.log(f"🧹 {month_label}: Removed {duplicate_rows:,} duplicate row(s).")
+            if duplicate_rows > 0:
+                ui.log(
+                    f"🔎 {month_label}: Found {duplicate_rows:,} exact duplicate row(s) "
+                    "(diagnostic only; file is unchanged)."
+                )
+                for index, sample in enumerate(duplicate_samples, start=1):
+                    ui.log(
+                        f"🔎 {month_label}: Duplicate sample {index}/{len(duplicate_samples)} "
+                        f"{json.dumps(sample, ensure_ascii=True, separators=(',', ':'))}"
+                    )
+            else:
+                ui.log(f"🔎 {month_label}: No exact duplicate rows found.")
 
         ui.set_status(task, "validating")
-        if rows_after_dedup != total_rows:
-            safe_unlink(temp_path)
-            ui.mark_terminal(task, "error", total_rows=total_rows)
-            return DownloadResult(
-                "errors",
-                (
-                    f"❌ {month_label}: Final row mismatch after dedupe "
-                    f"(disk {rows_after_dedup:,} vs API {total_rows:,})."
-                ),
-            )
 
         output_path.parent.mkdir(parents=True, exist_ok=True)
         temp_path.replace(output_path)
@@ -664,6 +683,14 @@ def parse_args() -> argparse.Namespace:
         help=(
             "Maximum concurrent month downloads. "
             f"Default: cpu_count - 1 ({DEFAULT_MAX_WORKERS})."
+        ),
+    )
+    parser.add_argument(
+        "--verify-duplicates",
+        action="store_true",
+        help=(
+            "Inspect downloaded CSVs for exact duplicate rows and print diagnostic "
+            "samples without modifying files."
         ),
     )
     parser.add_argument(
@@ -731,7 +758,15 @@ def main() -> int:
             ui.log(f"🧵 Running {len(tasks)} task(s) with max_workers={max_workers}")
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
                 futures = [
-                    executor.submit(process_task, task, headers, args.page_size, args.force, ui)
+                    executor.submit(
+                        process_task,
+                        task,
+                        headers,
+                        args.page_size,
+                        args.force,
+                        args.verify_duplicates,
+                        ui,
+                    )
                     for task in tasks
                 ]
                 for future in as_completed(futures):
