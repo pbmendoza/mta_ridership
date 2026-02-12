@@ -14,6 +14,7 @@ Usage from any script in the repo::
         load_socrata_token,
         build_headers,
         request_json,
+        get_soda_endpoint,
     )
 """
 
@@ -25,47 +26,41 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 import requests
+from dotenv import load_dotenv as _load_dotenv
 
-try:
-    from dotenv import load_dotenv as _load_dotenv
-except ImportError:  # python-dotenv is optional at runtime
-    _load_dotenv = None  # type: ignore[assignment]
-
-# ---------------------------------------------------------------------------
-# Defaults
-# ---------------------------------------------------------------------------
 DEFAULT_REQUEST_TIMEOUT = 60
 DEFAULT_MAX_RETRIES = 5
+_dotenv_loaded = False
 
-
-# ---------------------------------------------------------------------------
-# Path helpers
-# ---------------------------------------------------------------------------
 
 def repo_root() -> Path:
-    """Return the repository root directory.
+    """Find the project root by looking for the .git directory."""
+    current = Path(__file__).resolve().parent
+    for directory in [current, *current.parents]:
+        if (directory / ".git").exists():
+            return directory
+    return current
 
-    Assumes this file lives at ``<repo>/scripts/utils/socrata.py``.
-    """
-    return Path(__file__).resolve().parents[2]
 
+def get_soda_endpoint(dataset_id: str) -> str:
+    """Build SODA3 endpoint URL for a dataset."""
+    return f"https://data.ny.gov/resource/{dataset_id}.json"
 
-# ---------------------------------------------------------------------------
-# Token loading
-# ---------------------------------------------------------------------------
 
 def _ensure_dotenv_loaded() -> None:
-    """Load ``.env`` from the repo root if *python-dotenv* is available."""
-    if _load_dotenv is not None:
+    """Load ``.env`` from the repo root (at most once per process)."""
+    global _dotenv_loaded
+    if not _dotenv_loaded:
         _load_dotenv(repo_root() / ".env", override=False)
+        _dotenv_loaded = True
 
 
 def load_socrata_token() -> str:
     """Return the Socrata app token.
 
-    Resolution order:
-    1. ``.env`` file at repository root (via *python-dotenv*).
-    2. ``SOCRATA_APP_TOKEN`` environment variable.
+    Resolution order (highest priority first):
+    1. ``SOCRATA_APP_TOKEN`` environment variable (if already set).
+    2. ``.env`` file at repository root (fills unset vars only).
     3. Empty string (anonymous / unauthenticated access).
     """
     _ensure_dotenv_loaded()
@@ -75,18 +70,14 @@ def load_socrata_token() -> str:
 def load_socrata_secret_token() -> str:
     """Return the Socrata secret token.
 
-    Resolution order:
-    1. ``.env`` file at repository root (via *python-dotenv*).
-    2. ``SOCRATA_SECRET_TOKEN`` environment variable.
+    Resolution order (highest priority first):
+    1. ``SOCRATA_SECRET_TOKEN`` environment variable (if already set).
+    2. ``.env`` file at repository root (fills unset vars only).
     3. Empty string (not sent).
     """
     _ensure_dotenv_loaded()
     return os.getenv("SOCRATA_SECRET_TOKEN", "")
 
-
-# ---------------------------------------------------------------------------
-# Header building
-# ---------------------------------------------------------------------------
 
 def build_headers(
     app_token: Optional[str] = None,
@@ -94,14 +85,11 @@ def build_headers(
 ) -> Dict[str, str]:
     """Build HTTP headers for Socrata SODA3 requests.
 
-    Parameters
-    ----------
-    app_token:
-        Socrata application token.  When non-empty the ``X-App-Token``
-        header is set, which raises API throttle limits.
-    secret_token:
-        Optional Socrata secret token.  When non-empty the
-        ``X-App-Token-Secret`` header is set.
+    Args:
+        app_token: Socrata application token. When non-empty the
+            ``X-App-Token`` header is set, raising API throttle limits.
+        secret_token: Optional Socrata secret token. When non-empty the
+            ``X-App-Token-Secret`` header is set.
     """
     headers: Dict[str, str] = {"Accept": "application/json"}
     if app_token:
@@ -110,10 +98,6 @@ def build_headers(
         headers["X-App-Token-Secret"] = secret_token
     return headers
 
-
-# ---------------------------------------------------------------------------
-# HTTP request with retry
-# ---------------------------------------------------------------------------
 
 def request_json(
     session: requests.Session,
@@ -126,17 +110,13 @@ def request_json(
 ) -> List[Dict[str, str]]:
     """Perform a GET request with retry and exponential back-off.
 
-    Retries on:
-    - ``requests.RequestException`` (network errors)
-    - HTTP 429 (rate-limited)
+    Retries on ``requests.RequestException`` (network errors) and HTTP 429
+    (rate-limited). Returns the parsed JSON list on success.
 
-    Returns the parsed JSON list on success.
-
-    Raises
-    ------
-    RuntimeError
-        After *max_retries* consecutive failures, or if the response
-        payload is not a JSON list, or if Socrata reports ``not_found``.
+    Raises:
+        RuntimeError: After *max_retries* consecutive failures, or if the
+            response payload is not a JSON list, or if Socrata reports
+            ``not_found``.
     """
     attempt = 0
     while attempt < max_retries:
