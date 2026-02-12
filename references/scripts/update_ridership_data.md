@@ -33,8 +33,13 @@ The script sends:
 
 Credential resolution order:
 1. CLI args (`--app-token`, `--secret-token`)
-2. Environment variables (`SOCRATA_APP_TOKEN`, `SOCRATA_SECRET_TOKEN`)
-3. Built-in defaults in the script
+2. `.env` file at repository root (loaded via `python-dotenv`)
+3. Environment variables (`SOCRATA_APP_TOKEN`, `SOCRATA_SECRET_TOKEN`)
+
+To set up credentials, copy `.env.example` to `.env` and fill in your values:
+```bash
+cp .env.example .env
+```
 
 If app token resolves to an empty value, the script exits with code `1`.
 
@@ -77,8 +82,8 @@ python scripts/local/data/update_ridership_data.py --year 2025 --max-workers 2
 | `--page-size` | int | `50000` | `$limit` for paginated SODA requests. |
 | `--max-workers` | int (`>=1`) | `cpu_count - 1` (minimum `1`) | Max concurrent month tasks. Actual pool size is `min(max_workers, number_of_tasks)`. |
 | `--verify-duplicates` | flag | `False` | After download, inspect for exact duplicate rows and log count + sample rows (up to 5). No data rewriting. |
-| `--app-token` | str | env/default | Overrides app token source. |
-| `--secret-token` | str | env/default | Overrides secret token source. |
+| `--app-token` | str | `.env`/env var | Overrides app token source. |
+| `--secret-token` | str | `.env`/env var | Overrides secret token source. |
 
 ## Output Files
 
