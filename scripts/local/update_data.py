@@ -5,10 +5,10 @@ This script downloads monthly ridership records for all years defined in
 references/dataset_id_on_nyopendata.json, or for a specific year/month.
 
 Usage:
-    python scripts/update_data.py                          # all years/months
-    python scripts/update_data.py --year 2025              # all months in 2025
-    python scripts/update_data.py --year 2025 --month 6    # June 2025 only
-    python scripts/update_data.py --force                  # overwrite existing files
+    python scripts/local/update_data.py                          # all years/months
+    python scripts/local/update_data.py --year 2025              # all months in 2025
+    python scripts/local/update_data.py --year 2025 --month 6    # June 2025 only
+    python scripts/local/update_data.py --force                  # overwrite existing files
 
 Environment variables:
     SOCRATA_APP_TOKEN      App token for Socrata API
@@ -206,7 +206,7 @@ def positive_int(value: str) -> int:
 
 def repo_root() -> Path:
     """Return the repository root directory."""
-    return Path(__file__).resolve().parents[1]
+    return Path(__file__).resolve().parents[2]
 
 
 def load_dataset_ids() -> Dict[str, str]:

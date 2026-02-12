@@ -4,7 +4,7 @@ Download monthly MTA ridership CSVs from NY Open Data (Socrata SODA3), with comp
 
 ## Purpose
 
-`scripts/update_data.py` downloads monthly ridership data into:
+`scripts/local/update_data.py` downloads monthly ridership data into:
 
 `data/raw/ridership/{year}/{month}.csv`
 
@@ -49,22 +49,22 @@ If `rich` is not installed, the script falls back to plain-text logging.
 
 ```bash
 # All configured years, months 1-12 (future months are skipped)
-python scripts/update_data.py
+python scripts/local/update_data.py
 
 # All months in one year
-python scripts/update_data.py --year 2025
+python scripts/local/update_data.py --year 2025
 
 # One specific month
-python scripts/update_data.py --year 2025 --month 6
+python scripts/local/update_data.py --year 2025 --month 6
 
 # Re-download even if local file exists and appears complete
-python scripts/update_data.py --year 2025 --month 6 --force
+python scripts/local/update_data.py --year 2025 --month 6 --force
 
 # Duplicate diagnostics only (no file rewriting)
-python scripts/update_data.py --year 2025 --month 6 --verify-duplicates
+python scripts/local/update_data.py --year 2025 --month 6 --verify-duplicates
 
 # Limit worker concurrency
-python scripts/update_data.py --year 2025 --max-workers 2
+python scripts/local/update_data.py --year 2025 --max-workers 2
 ```
 
 ## Arguments
@@ -202,7 +202,7 @@ Exit code:
 
 ## Related Files
 
-- Script: `scripts/update_data.py`
+- Script: `scripts/local/update_data.py`
 - Dataset mapping: `references/dataset_id_on_nyopendata.json`
 - Similar downloader: `api_data_download/download.py`
 - Pipeline docs: `references/docs/PIPELINE.md`
