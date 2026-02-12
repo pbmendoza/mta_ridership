@@ -28,13 +28,13 @@ Features:
 - Uses station-to-PUMA mapping for geographic aggregation
 
 Usage:
-    python scripts/calculate_baseline.py
-    python scripts/calculate_baseline.py --years 2017 2018 2019
+    python scripts/local/calculate_baseline.py
+    python scripts/local/calculate_baseline.py --years 2017 2018 2019
 
 Output:
-    - results/baseline/monthly_baseline_station.csv
-    - results/baseline/monthly_baseline_puma.csv
-    - results/baseline/monthly_baseline_nyc.csv
+    - results/baseline_turnstile/monthly_baseline_station.csv
+    - results/baseline_turnstile/monthly_baseline_puma.csv
+    - results/baseline_turnstile/monthly_baseline_nyc.csv
 """
 
 from __future__ import annotations
@@ -150,7 +150,7 @@ def calculate_baselines(base_dir: Path, logger: logging.Logger,
     # Define paths
     input_file = base_dir / "data" / "processed" / "turnstile" / "daily_ridership.csv"
     station_puma_file = base_dir / "references" / "stations" / "station_to_puma.csv"
-    output_dir = base_dir / "results" / "baseline"
+    output_dir = base_dir / "results" / "baseline_turnstile"
     
     # Ensure output directory exists
     output_dir.mkdir(parents=True, exist_ok=True)
