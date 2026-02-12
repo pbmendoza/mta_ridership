@@ -61,8 +61,8 @@ python scripts/local/data/update_ridership_data.py --app-token YOUR_TOKEN
 When a script needs a token it checks, in order:
 
 1. `--app-token` / `--secret-token` CLI argument (highest priority)
-2. `.env` file at the repository root (loaded via `python-dotenv`)
-3. `SOCRATA_APP_TOKEN` / `SOCRATA_SECRET_TOKEN` environment variables
+2. `SOCRATA_APP_TOKEN` / `SOCRATA_SECRET_TOKEN` environment variables
+3. `.env` file at the repository root (fills unset vars only via `python-dotenv`)
 
 If no token is found the scripts still run, but you may encounter HTTP 429
 (rate-limit) errors.  When that happens the scripts will print a warning and

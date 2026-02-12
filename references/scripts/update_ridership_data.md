@@ -33,15 +33,16 @@ The script sends:
 
 Credential resolution order:
 1. CLI args (`--app-token`, `--secret-token`)
-2. `.env` file at repository root (loaded via `python-dotenv`)
-3. Environment variables (`SOCRATA_APP_TOKEN`, `SOCRATA_SECRET_TOKEN`)
+2. Environment variables (`SOCRATA_APP_TOKEN`, `SOCRATA_SECRET_TOKEN`)
+3. `.env` file at repository root (fills unset vars only via `python-dotenv`)
 
 To set up credentials, copy `.env.example` to `.env` and fill in your values:
 ```bash
 cp .env.example .env
 ```
 
-If app token resolves to an empty value, the script exits with code `1`.
+If no app token is found, the script prints a warning and continues with
+anonymous access (lower rate limits).
 
 ## Dependencies
 

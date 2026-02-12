@@ -35,6 +35,7 @@ import requests
 
 from scripts.utils.socrata import (
     build_headers,
+    get_soda_endpoint,
     load_socrata_token,
     load_socrata_secret_token,
     repo_root,
@@ -57,10 +58,6 @@ def load_dataset_ids() -> Dict[int, str]:
     with config_path.open("r", encoding="utf-8") as handle:
         raw = json.load(handle)
     return {int(year): dataset_id for year, dataset_id in raw.items()}
-
-
-def get_soda_endpoint(dataset_id: str) -> str:
-    return f"https://data.ny.gov/resource/{dataset_id}.json"
 
 
 def month_date_range(year: int, month: int) -> Tuple[str, str]:
@@ -367,6 +364,12 @@ def main() -> int:
 
     app_token = args.app_token if args.app_token is not None else load_socrata_token()
     secret_token = args.secret_token if args.secret_token is not None else load_socrata_secret_token()
+    if not app_token:
+        print(
+            "⚠️  No Socrata app token found. Running without authentication "
+            "(lower rate limits apply). Set SOCRATA_APP_TOKEN in .env, as an "
+            "env var, or use --app-token. See references/docs/socrata_api_setup.md."
+        )
     headers = build_headers(app_token, secret_token)
 
     tasks = list(build_tasks(dataset_ids, args.year, args.month))
