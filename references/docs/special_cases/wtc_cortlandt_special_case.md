@@ -29,7 +29,7 @@ complex_id,baseline_years,station_name,reason,notes
 328,2019,WTC-Cortlandt (1),Station closed from 9/11/2001 until 9/29/2018. Only 2019 provides full year of data.,Using single year baseline may not fully represent typical ridership patterns as station was still recovering after 17-year closure.
 ```
 
-The `scripts/calculate_baseline.py` script reads this configuration and applies the correct averaging (no division since only one year is specified). Use `scripts/verify_baseline_special_cases.py` to validate the configuration against official station references and see `logs/` for verification output.
+The `scripts/local/calculate_baseline.py` script reads this configuration and applies the correct averaging (no division since only one year is specified). Use `scripts/verify_baseline_special_cases.py` to validate the configuration against official station references and see `logs/` for verification output.
 
 ## Data Verification
 
@@ -66,6 +66,6 @@ Monthly ridership totals for WTC-Cortlandt in 2019:
 
 ## Related Files
 
-- `scripts/calculate_baseline.py`: Contains special handling logic
-- `scripts/process_turnstile_data.py`: Processes raw turnstile data
+- `scripts/local/calculate_baseline.py`: Contains special handling logic
+- `scripts/local/process_turnstile_data.py`: Processes raw turnstile data
 - `data/processed/turnstile/daily_ridership.csv`: Contains the 2018-2019 data

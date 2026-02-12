@@ -122,7 +122,7 @@ Lists all 496 individual subway stations (not aggregated by complex; count may c
 
 ## Usage in Analysis Pipeline
 
-1. **Turnstile Processing**: [`scripts/stage_turnstile_data.py`](../../scripts/stage_turnstile_data.py) applies the mapping
+1. **Turnstile Processing**: [`scripts/local/stage_turnstile_data.py`](../../scripts/local/stage_turnstile_data.py) applies the mapping
 2. **Baseline Calculation**: Ensures historical data aligns with modern complex definitions
 3. **Final Analysis**: Enables accurate year-over-year comparisons
 

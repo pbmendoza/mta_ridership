@@ -18,7 +18,7 @@ Filters are applied at different stages of the pipeline to ensure data quality a
 
 ## Turnstile Data Filters
 
-### Stage: Turnstile Staging (`stage_turnstile_data.py`)
+### Stage: Turnstile Staging (`scripts/local/stage_turnstile_data.py`)
 
 #### Station Exclusions
 - **Excluded Stations**: `["ORCHARD BEACH"]`
@@ -36,7 +36,7 @@ Filters are applied at different stages of the pipeline to ensure data quality a
 #### Note on Complex ID Filters
 - No Complex ID–based exclusions are applied during turnstile staging. Complex-level filters (e.g., Complex ID 502) are handled in modern ridership processing (see below).
 
-### Stage: Turnstile Processing (`process_turnstile_data.py`)
+### Stage: Turnstile Processing (`scripts/local/process_turnstile_data.py`)
 
 #### Outlier Detection
 - **Method**: Modal record count analysis
@@ -76,7 +76,7 @@ Filters are applied at different stages of the pipeline to ensure data quality a
 
 ## Modern Ridership Data Filters
 
-### Stage: Ridership Staging (`stage_ridership_data.py`)
+### Stage: Ridership Staging (`scripts/local/stage_ridership_data.py`)
 
 #### Transit Mode Filter
 - **Allowed Modes**: `['subway']` only
@@ -87,7 +87,7 @@ Filters are applied at different stages of the pipeline to ensure data quality a
 - **Filter**: Remove `station_complex_id == 502` (Tompkinsville)
 - **Rationale**: Complex ID 502 is Tompkinsville on the Staten Island Railway (SIR), which is out of scope for NYC Subway analysis. Some modern ridership records appear with this Complex ID despite `transit_mode = 'subway'`; they are filtered during staging and reinforced in monthly calculations.
 
-### Stage: Ridership Processing (`process_ridership_data.py`)
+### Stage: Ridership Processing (`scripts/local/process_ridership_data.py`)
 
 #### Data Normalization
 - **Payment Method**: Convert to uppercase

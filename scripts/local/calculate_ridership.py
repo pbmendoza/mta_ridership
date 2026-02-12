@@ -22,7 +22,7 @@ Features:
 - Comprehensive logging and error handling
 
 Usage:
-    python scripts/calculate_ridership.py
+    python scripts/local/calculate_ridership.py
 
 Output:
     - results/ridership/monthly_ridership_station.csv

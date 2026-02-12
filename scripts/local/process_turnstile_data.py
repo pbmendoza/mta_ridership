@@ -30,7 +30,7 @@ Key Logic:
 
 Usage:
     From project root:
-        python scripts/process_turnstile_data.py
+        python scripts/local/process_turnstile_data.py
         
 Output:
     - data/processed/turnstile/daily_ridership.csv

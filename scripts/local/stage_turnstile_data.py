@@ -35,9 +35,9 @@ Features:
 
 Usage:
     From project root:
-        python scripts/stage_turnstile_data.py
+        python scripts/local/stage_turnstile_data.py
     
-    From scripts directory:
+    From scripts/local directory:
         python stage_turnstile_data.py
 
 Output:

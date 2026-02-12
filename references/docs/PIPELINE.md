@@ -134,7 +134,7 @@ rm data/staging/turnstile/turnstile_combined.csv
 python run_pipeline.py --include-historical
 
 # Option 2: Run just the staging script
-python scripts/stage_turnstile_data.py
+python scripts/local/stage_turnstile_data.py
 ```
 
 ### Memory Management

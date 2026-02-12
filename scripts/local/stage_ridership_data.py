@@ -5,9 +5,9 @@ filters it to include only subway-related entries, selects relevant columns,
 and saves the processed data to the 'data/staging/ridership' directory.
 
 Usage:
-    python scripts/stage_ridership_data.py
-    python scripts/stage_ridership_data.py --filename ridership_2020_2024.csv
-    python scripts/stage_ridership_data.py --filename YOUR_FILE.csv
+    python scripts/local/stage_ridership_data.py
+    python scripts/local/stage_ridership_data.py --filename ridership_2020_2024.csv
+    python scripts/local/stage_ridership_data.py --filename YOUR_FILE.csv
 
 If no filename is provided, it defaults to '2025.csv'. Other available: 'ridership_2020_2024.csv' (historical).
 """
@@ -34,7 +34,7 @@ def stage_ridership_data(filename: str) -> None:
             non-integer values or negative numbers.
     """
     # Define project root and paths
-    PROJECT_ROOT = Path(__file__).resolve().parents[1]
+    PROJECT_ROOT = Path(__file__).resolve().parents[2]
     raw_data_path = PROJECT_ROOT / 'data' / 'raw' / 'ridership' / filename
     staging_path = PROJECT_ROOT / 'data' / 'staging' / 'ridership'
 

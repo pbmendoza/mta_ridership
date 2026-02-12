@@ -28,7 +28,7 @@ Features:
 - Uses station-to-PUMA mapping for geographic aggregation
 
 Usage:
-    python scripts/calculate_baseline.py
+    python scripts/local/calculate_baseline.py
 
 Output:
     - results/baseline/monthly_baseline_station.csv

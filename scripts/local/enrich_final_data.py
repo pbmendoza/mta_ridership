@@ -14,7 +14,7 @@ Features:
 - Provides detailed logging of enrichment statistics
 
 Usage:
-    python scripts/enrich_final_data.py
+    python scripts/local/enrich_final_data.py
 
 Output:
     - Enriches and sorts results/final/monthly_ridership_puma.csv

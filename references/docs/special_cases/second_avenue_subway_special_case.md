@@ -61,7 +61,7 @@ complex_id,baseline_years,station_name,reason,notes
 477,"2017, 2018, 2019",72 St-2 Ave (Q),Second Avenue Subway Phase 1 station opened January 1, 2017.,Excluded years when the stations were not open.
 ```
 
-The `scripts/calculate_baseline.py` script reads this configuration and divides monthly totals by the number of specified baseline years (3). Use `scripts/verify_baseline_special_cases.py` to validate the configuration against official station references and see `logs/` for verification output.
+The `scripts/local/calculate_baseline.py` script reads this configuration and divides monthly totals by the number of specified baseline years (3). Use `scripts/verify_baseline_special_cases.py` to validate the configuration against official station references and see `logs/` for verification output.
 
 ### Rationale
 
@@ -94,7 +94,7 @@ Using 2018-2019 data provides a more accurate baseline because:
 
 ## Related Files
 
-- `scripts/calculate_baseline.py`: Contains special handling logic
-- `scripts/process_turnstile_data.py`: Processes raw turnstile data
+- `scripts/local/calculate_baseline.py`: Contains special handling logic
+- `scripts/local/process_turnstile_data.py`: Processes raw turnstile data
 - `data/processed/turnstile/daily_ridership.csv`: Contains the 2017-2019 data
 - `references/docs/special_cases/wtc_cortlandt_special_case.md`: Similar special case documentation

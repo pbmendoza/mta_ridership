@@ -159,8 +159,8 @@ The small differences (<1%) are likely due to:
 ## 🛠️ Processing Pipeline
 
 ### Key Scripts
-1. [`scripts/stage_turnstile_data.py`](../../scripts/stage_turnstile_data.py) - Combines and standardizes raw files
-2. [`scripts/process_turnstile_data.py`](../../scripts/process_turnstile_data.py) - Calculates daily ridership from cumulative counters
+1. [`scripts/local/stage_turnstile_data.py`](../../scripts/local/stage_turnstile_data.py) - Combines and standardizes raw files
+2. [`scripts/local/process_turnstile_data.py`](../../scripts/local/process_turnstile_data.py) - Calculates daily ridership from cumulative counters
 
 ### Processing Features
 - **Counter Reset Detection**: Handles when cumulative counters reset to zero

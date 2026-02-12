@@ -18,7 +18,7 @@ Output columns added:
 - baseline_comparison: Percentage comparison (ridership / baseline_ridership)
 
 Usage:
-    python scripts/calculate_final.py
+    python scripts/local/calculate_final.py
 
 Output:
     - results/final/monthly_ridership_station.csv

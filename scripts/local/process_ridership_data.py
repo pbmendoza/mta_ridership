@@ -5,8 +5,8 @@ ridership data by date, station complex, and payment method, keeping
 each payment method as a separate row.
 
 Usage:
-    python scripts/process_ridership_data.py
-    python scripts/process_ridership_data.py --filename ridership_2020_2024.csv
+    python scripts/local/process_ridership_data.py
+    python scripts/local/process_ridership_data.py --filename ridership_2020_2024.csv
 """
 import argparse
 from pathlib import Path
@@ -26,7 +26,7 @@ def process_ridership_data(filename: str) -> None:
         filename: The name of the staged CSV file to process.
     """
     # Define project root and paths
-    PROJECT_ROOT = Path(__file__).resolve().parents[1]
+    PROJECT_ROOT = Path(__file__).resolve().parents[2]
     staged_data_path = PROJECT_ROOT / 'data' / 'staging' / 'ridership' / filename
     processed_path = PROJECT_ROOT / 'data' / 'processed' / 'ridership'
 

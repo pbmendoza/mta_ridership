@@ -13,7 +13,7 @@ from typing import Iterable, List
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent
-SCRIPTS_DIR = PROJECT_ROOT / "scripts"
+SCRIPTS_DIR = PROJECT_ROOT / "scripts" / "local"
 
 TURNSTILE_COMBINED = PROJECT_ROOT / "data" / "staging" / "turnstile" / "turnstile_combined.csv"
 RIDERSHIP_RAW_DIR = PROJECT_ROOT / "data" / "raw" / "ridership"
@@ -157,7 +157,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--skip-enrich",
         action="store_true",
-        help="Skip scripts/enrich_final_data.py after final merge.",
+        help="Skip scripts/local/enrich_final_data.py after final merge.",
     )
 
     args = parser.parse_args()
