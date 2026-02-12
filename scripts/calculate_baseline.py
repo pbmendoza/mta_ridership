@@ -29,6 +29,7 @@ Features:
 
 Usage:
     python scripts/calculate_baseline.py
+    python scripts/calculate_baseline.py --years 2017 2018 2019
 
 Output:
     - results/baseline/monthly_baseline_station.csv
@@ -36,10 +37,14 @@ Output:
     - results/baseline/monthly_baseline_nyc.csv
 """
 
-import pandas as pd
-from pathlib import Path
+from __future__ import annotations
+
+import argparse
 import logging
 from datetime import datetime
+from pathlib import Path
+
+import pandas as pd
 
 # Default baseline years for stations not in special cases
 DEFAULT_BASELINE_YEARS = [2015, 2016, 2017, 2018, 2019]
@@ -125,17 +130,22 @@ def load_special_cases_config(base_dir: Path, logger: logging.Logger) -> dict:
     
     logger.info(f"Loaded {len(special_cases)} special case configurations")
     
-    # Return config in same format as before
-    config = {
-        'special_cases': special_cases,
-        'default_baseline_years': DEFAULT_BASELINE_YEARS
-    }
-    
-    return config
+    return special_cases
 
 
-def calculate_baselines(base_dir: Path, logger: logging.Logger):
-    """Calculate monthly baselines from daily ridership data."""
+def calculate_baselines(base_dir: Path, logger: logging.Logger,
+                        baseline_years: list[int] | None = None):
+    """Calculate monthly baselines from daily ridership data.
+
+    Args:
+        base_dir: Project root directory.
+        logger: Logger instance.
+        baseline_years: Years to average over for regular stations.
+            Defaults to DEFAULT_BASELINE_YEARS when None.
+    """
+    if baseline_years is None:
+        baseline_years = DEFAULT_BASELINE_YEARS
+    baseline_years = sorted(baseline_years)
     
     # Define paths
     input_file = base_dir / "data" / "processed" / "turnstile" / "daily_ridership.csv"
@@ -153,9 +163,7 @@ def calculate_baselines(base_dir: Path, logger: logging.Logger):
     logger.info(f"Reading daily ridership data from {input_file.relative_to(base_dir)}")
     
     # Load special cases configuration
-    config = load_special_cases_config(base_dir, logger)
-    special_cases = config['special_cases']
-    default_years = config['default_baseline_years']
+    special_cases = load_special_cases_config(base_dir, logger)
     
     # Read daily ridership data
     df = pd.read_csv(input_file)
@@ -163,12 +171,15 @@ def calculate_baselines(base_dir: Path, logger: logging.Logger):
     # Convert DATE to datetime
     df['DATE'] = pd.to_datetime(df['DATE'])
     
-    # Filter for baseline years
-    min_year = min(default_years)
-    max_year = max(default_years)
-    df_all_baseline_years = df[(df['YEAR'] >= min_year) & (df['YEAR'] <= max_year)].copy()
+    # Collect all years needed (default + special cases) for the initial filter
+    all_needed_years = set(baseline_years)
+    for case_info in special_cases.values():
+        all_needed_years.update(case_info['baseline_years'])
+    df_all_baseline_years = df[df['YEAR'].isin(all_needed_years)].copy()
     
-    logger.info(f"Loaded data for years {min_year}-{max_year}: {len(df_all_baseline_years):,} records")
+    years_str = ', '.join(map(str, sorted(all_needed_years)))
+    logger.info(f"📅 Baseline years for regular stations: {baseline_years}")
+    logger.info(f"Loaded data for years [{years_str}]: {len(df_all_baseline_years):,} records")
     
     # Initialize list to collect all monthly data
     all_monthly_data = []
@@ -179,10 +190,10 @@ def calculate_baselines(base_dir: Path, logger: logging.Logger):
     # Process regular stations (those not in special cases)
     regular_stations_mask = ~df_all_baseline_years['Complex ID'].isin(special_case_ids)
     df_regular = df_all_baseline_years[regular_stations_mask & 
-                                       df_all_baseline_years['YEAR'].isin(default_years)].copy()
+                                       df_all_baseline_years['YEAR'].isin(baseline_years)].copy()
     
     if len(df_regular) > 0:
-        logger.info(f"Processing {df_regular['Complex ID'].nunique()} regular stations with {len(default_years)}-year baseline")
+        logger.info(f"Processing {df_regular['Complex ID'].nunique()} regular stations with {len(baseline_years)}-year baseline")
         
         # Calculate monthly totals for regular stations
         monthly_regular = df_regular.groupby(['Complex ID', 'MONTH']).agg({
@@ -191,25 +202,25 @@ def calculate_baselines(base_dir: Path, logger: logging.Logger):
         }).reset_index()
         
         # Calculate averages based on number of years
-        monthly_regular['ENTRIES'] = monthly_regular['ENTRIES'] / len(default_years)
-        monthly_regular['EXITS'] = monthly_regular['EXITS'] / len(default_years)
+        monthly_regular['ENTRIES'] = monthly_regular['ENTRIES'] / len(baseline_years)
+        monthly_regular['EXITS'] = monthly_regular['EXITS'] / len(baseline_years)
         
         all_monthly_data.append(monthly_regular)
     
     # Process special case stations
     for complex_id, case_info in special_cases.items():
         station_name = case_info['station_name']
-        baseline_years = case_info['baseline_years']
+        case_years = case_info['baseline_years']
         reason = case_info['reason']
         
         # Filter data for this station and its specific years
         df_special = df_all_baseline_years[
             (df_all_baseline_years['Complex ID'] == complex_id) & 
-            (df_all_baseline_years['YEAR'].isin(baseline_years))
+            (df_all_baseline_years['YEAR'].isin(case_years))
         ].copy()
         
         if len(df_special) > 0:
-            years_str = ', '.join(map(str, baseline_years))
+            years_str = ', '.join(map(str, case_years))
             logger.info(f"Processing special case: {station_name} ({complex_id}) - "
                        f"{len(df_special):,} records from years {years_str}")
             logger.info(f"  Reason: {reason}")
@@ -221,14 +232,14 @@ def calculate_baselines(base_dir: Path, logger: logging.Logger):
             }).reset_index()
             
             # Calculate averages based on number of years
-            divisor = len(baseline_years)
+            divisor = len(case_years)
             monthly_special['ENTRIES'] = monthly_special['ENTRIES'] / divisor
             monthly_special['EXITS'] = monthly_special['EXITS'] / divisor
             
             all_monthly_data.append(monthly_special)
         else:
             logger.warning(f"No data found for special case station {station_name} ({complex_id}) "
-                          f"in years {baseline_years}")
+                          f"in years {case_years}")
     
     # Combine all monthly data
     if all_monthly_data:
@@ -321,8 +332,32 @@ def calculate_baselines(base_dir: Path, logger: logging.Logger):
     logger.info(f"Saved NYC baseline to {nyc_output.relative_to(base_dir)}")
 
 
+def parse_args() -> argparse.Namespace:
+    """Parse command-line arguments."""
+    parser = argparse.ArgumentParser(
+        description="Calculate monthly baseline ridership from daily turnstile data."
+    )
+    parser.add_argument(
+        "--years",
+        type=int,
+        nargs="+",
+        default=DEFAULT_BASELINE_YEARS,
+        help="Baseline years to average over (default: 2015 2016 2017 2018 2019).",
+    )
+    args = parser.parse_args()
+
+    # Validate year range
+    for y in args.years:
+        if not 2014 <= y <= 2023:
+            parser.error(f"Year {y} is outside the valid data range (2014–2023).")
+
+    return args
+
+
 def main():
     """Main execution function."""
+    args = parse_args()
+
     # Find project root
     base_dir = find_project_root()
     
@@ -333,7 +368,7 @@ def main():
     start_time = datetime.now()
     
     try:
-        calculate_baselines(base_dir, logger)
+        calculate_baselines(base_dir, logger, baseline_years=args.years)
         
         elapsed_time = datetime.now() - start_time
         logger.info(f"Baseline calculation completed in {elapsed_time.total_seconds():.2f} seconds")
