@@ -143,7 +143,7 @@ The script performs the following validation when loading the configuration:
 
 ## Related Files
 
-- `scripts/local/calculate_baseline.py` - Processes this configuration
+- `scripts/calculate_baseline.py` - Processes this configuration
 - `references/baseline_special_cases.csv` - The configuration file
 - `scripts/verify_baseline_special_cases.py` - Verifies configuration against official stations
 - `logs/` - Contains verification and calculation logs

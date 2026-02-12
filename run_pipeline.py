@@ -14,6 +14,7 @@ from typing import Iterable, List
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 SCRIPTS_DIR = PROJECT_ROOT / "scripts" / "local"
+SCRIPTS_ROOT = PROJECT_ROOT / "scripts"
 
 RIDERSHIP_RAW_DIR = PROJECT_ROOT / "data" / "raw" / "ridership"
 
@@ -28,7 +29,7 @@ SCRIPTS_REQUIRED = [
     SCRIPTS_DIR / "process_ridership_data.py",
     SCRIPTS_DIR / "calculate_ridership.py",
     SCRIPTS_DIR / "calculate_final.py",
-    SCRIPTS_DIR / "enrich_final_data.py",
+    SCRIPTS_ROOT / "enrich_final_data.py",
 ]
 
 
@@ -132,7 +133,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--skip-enrich",
         action="store_true",
-        help="Skip scripts/local/enrich_final_data.py after final merge.",
+        help="Skip scripts/enrich_final_data.py after final merge.",
     )
     return parser.parse_args()
 
@@ -216,7 +217,7 @@ def main() -> int:
             print_header("Step 4: Enrichment")
             run_command(
                 "Enriching final outputs",
-                [sys.executable, str(SCRIPTS_DIR / "enrich_final_data.py")],
+                [sys.executable, str(SCRIPTS_ROOT / "enrich_final_data.py")],
             )
             run_summary.append("enrichment")
 

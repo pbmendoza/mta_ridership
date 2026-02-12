@@ -34,12 +34,13 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 SCRIPTS_DIR = PROJECT_ROOT / "scripts" / "local"
+SCRIPTS_ROOT = PROJECT_ROOT / "scripts"
 TURNSTILE_COMBINED = PROJECT_ROOT / "data" / "staging" / "turnstile" / "turnstile_combined.csv"
 
 SCRIPTS_REQUIRED = [
     SCRIPTS_DIR / "stage_turnstile_data.py",
     SCRIPTS_DIR / "process_turnstile_data.py",
-    SCRIPTS_DIR / "calculate_baseline.py",
+    SCRIPTS_ROOT / "calculate_baseline.py",
 ]
 
 
@@ -149,7 +150,7 @@ def main() -> int:
         print_header("Step 3: Calculate Baseline")
         run_command(
             "Calculating baseline",
-            [sys.executable, str(SCRIPTS_DIR / "calculate_baseline.py")],
+            [sys.executable, str(SCRIPTS_ROOT / "calculate_baseline.py")],
         )
 
         elapsed = time.monotonic() - started
