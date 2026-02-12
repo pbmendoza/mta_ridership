@@ -39,7 +39,7 @@ complex_id,baseline_years,station_name,reason,notes
 - Years are parsed as integers during processing
 
 ### Default Baseline Years  
-The default baseline years [2015, 2016, 2017, 2018, 2019] are defined as a constant in the `calculate_baseline.py` script:
+The default baseline years [2015, 2016, 2017, 2018, 2019] are defined as a constant in the `scripts/local/calculate_baseline.py` script:
 ```python
 DEFAULT_BASELINE_YEARS = [2015, 2016, 2017, 2018, 2019]
 ```
@@ -47,7 +47,7 @@ DEFAULT_BASELINE_YEARS = [2015, 2016, 2017, 2018, 2019]
 ## How Baseline Calculation Works
 
 ### 1. Configuration Loading
-The `calculate_baseline.py` script loads the CSV configuration at startup:
+The `scripts/local/calculate_baseline.py` script loads the CSV configuration at startup:
 ```python
 config = load_special_cases_config(base_dir, logger)
 special_cases = config['special_cases']  # Dictionary created from CSV
@@ -120,7 +120,7 @@ Simply delete the station's row from the CSV file. The station will then use the
 
 ### 3. Testing
 After modifications:
-1. Run `calculate_baseline.py`
+1. Run `scripts/local/calculate_baseline.py`
 2. Check logs for special case processing messages
 3. Verify output files contain expected values
 
@@ -143,7 +143,7 @@ The script performs the following validation when loading the configuration:
 
 ## Related Files
 
-- `scripts/calculate_baseline.py` - Processes this configuration
+- `scripts/local/calculate_baseline.py` - Processes this configuration
 - `references/baseline_special_cases.csv` - The configuration file
 - `scripts/verify_baseline_special_cases.py` - Verifies configuration against official stations
 - `logs/` - Contains verification and calculation logs
