@@ -34,4 +34,4 @@ The baseline calculation uses station-specific year ranges for ~28 stations that
 
 ## Practical Note
 
-The baseline covers **2015–2019 only** and is static. The results are cached in `results/baseline/` and `run_pipeline.py` simply validates these files exist. To regenerate them, run `pipelines/run_historical_turnstile.py`. Even if an API approach were feasible, the benefit would be minimal since the baseline is computed once and never changes.
+The baseline covers **2015–2019 only** and is static. The results are cached in `results/baseline/` and `run_pipeline.py` simply validates these files exist. To regenerate them, run `pipelines/calculate_baseline.py`. Even if an API approach were feasible, the benefit would be minimal since the baseline is computed once and never changes.

@@ -114,7 +114,7 @@ python run_pipeline.py
 To generate or regenerate the baseline files from historical turnstile data:
 
 ```bash
-python pipelines/run_historical_turnstile.py
+python pipelines/calculate_baseline.py
 ```
 
 ### Adding New Data

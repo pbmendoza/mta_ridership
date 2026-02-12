@@ -106,7 +106,7 @@ def validate_baseline_files() -> None:
         raise RuntimeError(
             "Baseline files are missing. This pipeline requires existing baseline outputs.\n"
             f"{missing_list}\n"
-            "Run 'python pipelines/run_historical_turnstile.py' to generate them."
+            "Run 'python pipelines/calculate_baseline.py' to generate them."
         )
 
 

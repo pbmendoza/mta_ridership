@@ -13,8 +13,8 @@ Steps:
     3. Calculate baseline (monthly averages for 2015–2019)
 
 Usage:
-    python pipelines/run_historical_turnstile.py
-    python pipelines/run_historical_turnstile.py --force-stage
+    python pipelines/calculate_baseline.py
+    python pipelines/calculate_baseline.py --force-stage
 
 Output:
     results/baseline/monthly_baseline_station.csv
