@@ -4,28 +4,22 @@ Last updated: 2026-02-11
 
 ## Overview
 
-The MTA Ridership Data Processing Pipeline (`run_pipeline.py`) is an automated workflow that processes NYC subway ridership data from two different eras:
+The MTA Ridership Data Processing Pipeline (`run_pipeline.py`) processes modern NYC subway ridership data (2020–present) and merges it with pre-computed baseline averages to create comprehensive ridership metrics at multiple geographic levels.
 
-1. **Historical Data (2010–May 2023)**: Individual turnstile swipe counts (raw files available 2010–May 2023; processed/staged from 2014-10-18 modern format)
-2. **Modern Data (2020–present)**: Payment method data including OMNY adoption (months with incomplete days are filtered out)
-
-The pipeline combines these datasets to create comprehensive ridership metrics at multiple geographic levels with baseline comparisons.
-
-By default, the runner executes the modern branch only and expects existing baseline files.
-The historical turnstile + baseline branch is opt-in via `--include-historical`.
+A separate pipeline (`pipelines/run_historical_turnstile.py`) handles the historical turnstile data (2014–2023) to generate the baseline files (2015–2019 monthly averages). This only needs to be run once, or when baseline data needs regeneration.
 
 ## Quick Start
 
 ```bash
-# Default mode: modern branch + final merge + enrichment
+# Main pipeline: modern ridership + final merge + enrichment
 python run_pipeline.py
 
-# Include historical turnstile processing and baseline regeneration
-python run_pipeline.py --include-historical
+# Generate baseline files (only needed once, or to regenerate)
+python pipelines/run_historical_turnstile.py
 ```
 
-Default mode requires existing baseline files in `results/baseline/`.
-If those files are missing, rerun with `python run_pipeline.py --include-historical`.
+`run_pipeline.py` requires existing baseline files in `results/baseline/`.
+If those files are missing, run the historical pipeline first.
 
 ## Pipeline Architecture
 
@@ -65,17 +59,11 @@ If those files are missing, rerun with `python run_pipeline.py --include-histori
 
 ## Pipeline Steps
 
-### Step 1: Historical Branch (Optional)
+### Step 1: Baseline Validation
 
-**Enabled by**: `--include-historical`
+Verifies that baseline files exist in `results/baseline/`. If missing, the pipeline exits with instructions to run `pipelines/run_historical_turnstile.py`.
 
-**Scripts**: `stage_turnstile_data.py`, `process_turnstile_data.py`, `calculate_baseline.py`
-
-- Stages historical turnstile files (cached `turnstile_combined.csv` is reused unless forced)
-- Processes turnstile data into daily complex-level metrics
-- Calculates monthly baseline files for 2015-2019
-
-### Step 2: Modern Ridership Calculation (Default Path)
+### Step 2: Modern Ridership Calculation
 
 **Script**: `calculate_ridership.py`
 
@@ -110,7 +98,7 @@ If those files are missing, rerun with `python run_pipeline.py --include-histori
 
 ### Turnstile Data Caching
 
-Historical turnstile data (2014–2023 modern-format subset) never changes, so the historical branch caches the combined file:
+The historical turnstile pipeline (`pipelines/run_historical_turnstile.py`) caches the combined turnstile file:
 
 - **First run**: Takes 15-20 minutes to combine 488 files
 - **Subsequent runs**: Skips turnstile staging, saves ~10 minutes
@@ -127,14 +115,8 @@ Regenerate the combined turnstile file only when:
 To regenerate:
 
 ```bash
-# Remove the cached file
-rm data/staging/turnstile/turnstile_combined.csv
-
-# Option 1: Run with historical branch enabled (will recreate it)
-python run_pipeline.py --include-historical
-
-# Option 2: Run just the staging script
-python scripts/local/stage_turnstile_data.py
+# Force regeneration of turnstile_combined.csv and recalculate baseline
+python pipelines/run_historical_turnstile.py --force-stage
 ```
 
 ### Memory Management
@@ -183,12 +165,13 @@ The updated `stage_turnstile_data.py` processes files in batches:
 Typical pipeline execution times:
 
 | Run Mode | Typical Time |
-|------|-----------------|
-| Default (`python run_pipeline.py`) | 10-15 min |
-| With historical (`--include-historical`) | 25-35 min |
+|------|------------------|
+| Main pipeline (`python run_pipeline.py`) | 10-15 min |
+| Historical pipeline (`python pipelines/run_historical_turnstile.py`) | 15-25 min |
 
 Notes:
 - Times and sizes are approximate and depend on hardware and storage (e.g., ~16GB RAM Mac, SSD). Capture date: 2026-02-11.
+
 ## Troubleshooting
 
 ### Out of Memory Errors
@@ -227,7 +210,7 @@ If using OneDrive, large file operations may cause sync delays:
 
 1. **New turnstile files**: Place in `data/raw/turnstile/`
 2. **New ridership files**: Place in `data/raw/ridership/`
-3. Run `python run_pipeline.py` (or include `--include-historical` when baseline needs regeneration)
+3. Run `python run_pipeline.py` (run `python pipelines/run_historical_turnstile.py` first if baseline needs regeneration)
 
 ### Updating Processing Logic
 

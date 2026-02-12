@@ -105,16 +105,16 @@ Each file includes:
 
 ### Running the Pipeline
 
-Default execution runs the modern branch and final outputs, reusing existing baseline files:
+Default execution runs the modern branch and final outputs, using existing baseline files:
 
 ```bash
 python run_pipeline.py
 ```
 
-To also regenerate the historical turnstile branch and baseline files:
+To generate or regenerate the baseline files from historical turnstile data:
 
 ```bash
-python run_pipeline.py --include-historical
+python pipelines/run_historical_turnstile.py
 ```
 
 ### Adding New Data

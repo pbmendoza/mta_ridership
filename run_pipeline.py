@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Cross-platform pipeline runner for MTA ridership processing."""
+"""Pipeline runner for modern MTA ridership processing, final merge, and enrichment."""
 
 from __future__ import annotations
 
@@ -15,7 +15,6 @@ from typing import Iterable, List
 PROJECT_ROOT = Path(__file__).resolve().parent
 SCRIPTS_DIR = PROJECT_ROOT / "scripts" / "local"
 
-TURNSTILE_COMBINED = PROJECT_ROOT / "data" / "staging" / "turnstile" / "turnstile_combined.csv"
 RIDERSHIP_RAW_DIR = PROJECT_ROOT / "data" / "raw" / "ridership"
 
 BASELINE_REQUIRED_FILES = [
@@ -30,9 +29,6 @@ SCRIPTS_REQUIRED = [
     SCRIPTS_DIR / "calculate_ridership.py",
     SCRIPTS_DIR / "calculate_final.py",
     SCRIPTS_DIR / "enrich_final_data.py",
-    SCRIPTS_DIR / "stage_turnstile_data.py",
-    SCRIPTS_DIR / "process_turnstile_data.py",
-    SCRIPTS_DIR / "calculate_baseline.py",
 ]
 
 
@@ -108,15 +104,10 @@ def validate_baseline_files() -> None:
     if missing:
         missing_list = "\n".join(f"  - {path.relative_to(PROJECT_ROOT)}" for path in missing)
         raise RuntimeError(
-            "Baseline files are missing. Default mode requires existing baseline outputs.\n"
+            "Baseline files are missing. This pipeline requires existing baseline outputs.\n"
             f"{missing_list}\n"
-            "Run with '--include-historical' to generate baseline files."
+            "Run 'python pipelines/run_historical_turnstile.py' to generate them."
         )
-
-
-def should_stage_turnstile(force_flag: bool) -> bool:
-    """Determine whether historical turnstile staging should run."""
-    return force_flag or (not TURNSTILE_COMBINED.is_file())
 
 
 def run_command(step_name: str, args_list: Iterable[str]) -> None:
@@ -134,36 +125,16 @@ def run_command(step_name: str, args_list: Iterable[str]) -> None:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Run the MTA ridership pipeline. Default mode runs modern ridership "
-            "processing, final merge, and enrichment using existing baseline files."
+            "Run the MTA ridership pipeline. Processes modern ridership data, "
+            "merges with existing baseline, and enriches final outputs."
         )
-    )
-    parser.add_argument(
-        "--include-historical",
-        action="store_true",
-        help=(
-            "Run historical turnstile staging/processing and baseline calculation "
-            "before modern branch."
-        ),
-    )
-    parser.add_argument(
-        "--force-turnstile-stage",
-        action="store_true",
-        help=(
-            "Force regeneration of data/staging/turnstile/turnstile_combined.csv. "
-            "Requires --include-historical."
-        ),
     )
     parser.add_argument(
         "--skip-enrich",
         action="store_true",
         help="Skip scripts/local/enrich_final_data.py after final merge.",
     )
-
-    args = parser.parse_args()
-    if args.force_turnstile_stage and not args.include_historical:
-        parser.error("--force-turnstile-stage requires --include-historical")
-    return args
+    return parser.parse_args()
 
 
 def main() -> int:
@@ -188,9 +159,6 @@ def main() -> int:
             PROJECT_ROOT / "results" / "ridership",
             PROJECT_ROOT / "results" / "final",
         ]
-        if args.include_historical:
-            clean_targets.append(PROJECT_ROOT / "results" / "baseline")
-
         for target in clean_targets:
             removed = clean_csv_dir(target)
             print_step(f"Cleaned {target.relative_to(PROJECT_ROOT)} ({removed} file(s))")
@@ -201,36 +169,9 @@ def main() -> int:
             + ", ".join(path.name for path in ridership_files)
         )
 
-        if args.include_historical:
-            print_header("Step 1: Historical Branch (Optional)")
-
-            if should_stage_turnstile(args.force_turnstile_stage):
-                if args.force_turnstile_stage:
-                    print_step("Force mode enabled for turnstile staging")
-                run_command(
-                    "Staging turnstile data",
-                    [sys.executable, str(SCRIPTS_DIR / "stage_turnstile_data.py")],
-                )
-            else:
-                print_step(
-                    "Skipping turnstile staging; using cached "
-                    "data/staging/turnstile/turnstile_combined.csv"
-                )
-
-            run_command(
-                "Processing turnstile data",
-                [sys.executable, str(SCRIPTS_DIR / "process_turnstile_data.py")],
-            )
-            run_command(
-                "Calculating baseline",
-                [sys.executable, str(SCRIPTS_DIR / "calculate_baseline.py")],
-            )
-            run_summary.append("historical branch")
-        else:
-            print_header("Step 1: Baseline Validation (Default Mode)")
-            validate_baseline_files()
-            print_step("Baseline files detected; proceeding without historical branch")
-            run_summary.append("baseline validation only")
+        print_header("Step 1: Baseline Validation")
+        validate_baseline_files()
+        print_step("Baseline files detected")
 
         print_header("Step 2: Modern Ridership Branch")
         for ridership_file in ridership_files:
@@ -289,10 +230,7 @@ def main() -> int:
         print("\nOutputs:")
         print("  - results/ridership/")
         print("  - results/final/")
-        if args.include_historical:
-            print("  - results/baseline/ (regenerated)")
-        else:
-            print("  - results/baseline/ (reused existing)")
+        print("  - results/baseline/ (existing)")
         return 0
 
     except (FileNotFoundError, RuntimeError, subprocess.CalledProcessError) as exc:
