@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""Download MTA turnstile data by month via the SODA3 API.
+"""Download MTA ridership data by month via the SODA3 API.
 
-This script downloads monthly turnstile records for all years defined in
-references/turnstile_data_nyopendata.json, or for a specific year/month.
+This script downloads monthly ridership records for all years defined in
+references/dataset_id_on_nyopendata.json, or for a specific year/month.
 
 Usage:
-    python scripts/local/data/update_turnstile_data.py                          # all years/months
-    python scripts/local/data/update_turnstile_data.py --year 2019              # all months in 2019
-    python scripts/local/data/update_turnstile_data.py --year 2019 --month 6    # June 2019 only
-    python scripts/local/data/update_turnstile_data.py --force                  # overwrite existing files
+    python scripts/local/data/update_ridership_data.py                          # all years/months
+    python scripts/local/data/update_ridership_data.py --year 2025              # all months in 2025
+    python scripts/local/data/update_ridership_data.py --year 2025 --month 6    # June 2025 only
+    python scripts/local/data/update_ridership_data.py --force                  # overwrite existing files
 
 Environment variables:
     SOCRATA_APP_TOKEN      App token for Socrata API
@@ -63,27 +63,27 @@ DEFAULT_MAX_WORKERS = max(1, (os.cpu_count() or 2) - 1)
 LINE_COUNT_CHUNK_SIZE = 1024 * 1024
 DEFAULT_DUPLICATE_SAMPLE_LIMIT = 5
 SODA_ORDER_CLAUSE = (
-    "date ASC, "
-    "c_a ASC, "
-    "unit ASC, "
-    "scp ASC, "
-    "time ASC, "
+    "transit_timestamp ASC, "
+    "station_complex_id ASC, "
+    "payment_method ASC, "
+    "fare_class_category ASC, "
     ":id ASC"
 )
 
 # Column order for CSV output.
 COLUMN_ORDER = [
-    "c_a",
-    "unit",
-    "scp",
-    "station",
-    "linename",
-    "division",
-    "date",
-    "time",
-    "desc",
-    "entries",
-    "exits",
+    "transit_timestamp",
+    "transit_mode",
+    "station_complex_id",
+    "station_complex",
+    "borough",
+    "payment_method",
+    "fare_class_category",
+    "ridership",
+    "transfers",
+    "latitude",
+    "longitude",
+    "georeference",
 ]
 
 PRINT_LOCK = Lock()
@@ -211,7 +211,7 @@ def repo_root() -> Path:
 
 def load_dataset_ids() -> Dict[str, str]:
     """Load year-to-dataset-id mapping from JSON config."""
-    config_path = repo_root() / "references" / "turnstile_data_nyopendata.json"
+    config_path = repo_root() / "references" / "dataset_id_on_nyopendata.json"
     with open(config_path, "r", encoding="utf-8") as f:
         return json.load(f)
 
@@ -222,8 +222,8 @@ def get_soda_endpoint(dataset_id: str) -> str:
 
 
 def get_output_path(year: int, month: int) -> Path:
-    """Return output path: data/raw/turnstile/{year}/{month}.csv"""
-    return repo_root() / "data" / "raw" / "turnstile" / str(year) / f"{month}.csv"
+    """Return output path: data/raw/ridership/{year}/{month}.csv"""
+    return repo_root() / "data" / "raw" / "ridership" / str(year) / f"{month}.csv"
 
 
 def get_last_day_of_month(year: int, month: int) -> int:
@@ -250,7 +250,7 @@ def compute_date_range(year: int, month: int) -> Tuple[str, str]:
 def get_month_where_clause(year: int, month: int) -> str:
     """Build SoQL where clause for one month."""
     start_ts, end_ts = compute_date_range(year, month)
-    return f"date >= '{start_ts}' AND date < '{end_ts}'"
+    return f"transit_timestamp >= '{start_ts}' AND transit_timestamp < '{end_ts}'"
 
 
 def build_headers(app_token: str, secret_token: str) -> Dict[str, str]:
@@ -327,7 +327,7 @@ def check_first_day_has_data(
     """Check if there is data for the first day of the month."""
     first_day_start = f"{year}-{month:02d}-01T00:00:00"
     first_day_end = f"{year}-{month:02d}-01T23:59:59"
-    where_clause = f"date >= '{first_day_start}' AND date <= '{first_day_end}'"
+    where_clause = f"transit_timestamp >= '{first_day_start}' AND transit_timestamp <= '{first_day_end}'"
     count = count_rows(session, endpoint, headers, where_clause)
     return count > 0
 
@@ -343,7 +343,7 @@ def check_last_day_has_data(
     last_day = get_last_day_of_month(year, month)
     last_day_start = f"{year}-{month:02d}-{last_day:02d}T00:00:00"
     last_day_end = f"{year}-{month:02d}-{last_day:02d}T23:59:59"
-    where_clause = f"date >= '{last_day_start}' AND date <= '{last_day_end}'"
+    where_clause = f"transit_timestamp >= '{last_day_start}' AND transit_timestamp <= '{last_day_end}'"
     count = count_rows(session, endpoint, headers, where_clause)
     return count > 0
 
@@ -357,9 +357,9 @@ def count_unique_days(
 ) -> int:
     """Count unique days with data in the given month."""
     start_ts, end_ts = compute_date_range(year, month)
-    where_clause = f"date >= '{start_ts}' AND date < '{end_ts}'"
+    where_clause = f"transit_timestamp >= '{start_ts}' AND transit_timestamp < '{end_ts}'"
     params = {
-        "$select": "date_trunc_ymd(date) AS day",
+        "$select": "date_trunc_ymd(transit_timestamp) AS day",
         "$where": where_clause,
         "$group": "day",
     }
@@ -535,7 +535,7 @@ def download_month(
                 writer.writeheader()
 
             for row in rows:
-                if "date" not in row:
+                if "transit_timestamp" not in row:
                     continue
                 writer.writerow(normalize_row(row, header))
                 written += 1
@@ -702,13 +702,13 @@ def process_task(
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Download MTA turnstile data by month via SODA3 API.",
+        description="Download MTA ridership data by month via SODA3 API.",
     )
     parser.add_argument(
         "--year",
         type=int,
         default=None,
-        help="Year to download (e.g., 2019). If omitted, downloads all years in config.",
+        help="Year to download (e.g., 2025). If omitted, downloads all years in config.",
     )
     parser.add_argument(
         "--month",
