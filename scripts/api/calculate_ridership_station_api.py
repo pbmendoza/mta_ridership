@@ -23,16 +23,24 @@ import calendar
 from dataclasses import dataclass
 from datetime import date
 import json
-import os
 from pathlib import Path
-import time
+import sys
 from typing import Dict, Iterable, List, Optional, Tuple
+
+# Ensure repo root is on sys.path so that ``scripts.utils`` is importable.
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import pandas as pd
 import requests
 
-REQUEST_TIMEOUT = 60
-MAX_RETRIES = 5
+from scripts.utils.socrata import (
+    build_headers,
+    load_socrata_token,
+    load_socrata_secret_token,
+    repo_root,
+    request_json,
+)
+
 DEFAULT_PAGE_SIZE = 50_000
 DAY_GROUP_ORDER = ["total", "weekday", "weekend"]
 
@@ -42,10 +50,6 @@ class MonthTask:
     year: int
     month: int
     dataset_id: str
-
-
-def repo_root() -> Path:
-    return Path(__file__).resolve().parents[2]
 
 
 def load_dataset_ids() -> Dict[int, str]:
@@ -71,49 +75,6 @@ def month_date_range(year: int, month: int) -> Tuple[str, str]:
 def is_future_month(year: int, month: int) -> bool:
     today = date.today()
     return date(year, month, 1) > date(today.year, today.month, 1)
-
-
-def build_headers(app_token: Optional[str], secret_token: Optional[str]) -> Dict[str, str]:
-    headers: Dict[str, str] = {"Accept": "application/json"}
-    if app_token:
-        headers["X-App-Token"] = app_token
-    if secret_token:
-        headers["X-App-Token-Secret"] = secret_token
-    return headers
-
-
-def request_json(
-    session: requests.Session,
-    endpoint: str,
-    params: Dict[str, str],
-    headers: Dict[str, str],
-) -> List[Dict[str, str]]:
-    attempt = 0
-    while attempt < MAX_RETRIES:
-        try:
-            response = session.get(
-                endpoint,
-                params=params,
-                headers=headers,
-                timeout=REQUEST_TIMEOUT,
-            )
-        except requests.RequestException:
-            attempt += 1
-            time.sleep(min(2**attempt, 60))
-            continue
-
-        if response.status_code == 429:
-            attempt += 1
-            time.sleep(min(2**attempt, 60))
-            continue
-
-        response.raise_for_status()
-        payload = response.json()
-        if not isinstance(payload, list):
-            raise RuntimeError(f"Unexpected payload type: {type(payload)!r}")
-        return payload
-
-    raise RuntimeError(f"Request failed after {MAX_RETRIES} retries.")
 
 
 def month_where_clause(year: int, month: int, station_id: Optional[str] = None) -> str:
@@ -375,13 +336,13 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--app-token",
-        default=os.getenv("SOCRATA_APP_TOKEN", ""),
-        help="Socrata app token (optional; can also use SOCRATA_APP_TOKEN).",
+        default=None,
+        help="Socrata app token (default: from .env or SOCRATA_APP_TOKEN env var).",
     )
     parser.add_argument(
         "--secret-token",
-        default=os.getenv("SOCRATA_SECRET_TOKEN", ""),
-        help="Socrata secret token (optional; can also use SOCRATA_SECRET_TOKEN).",
+        default=None,
+        help="Socrata secret token (default: from .env or SOCRATA_SECRET_TOKEN env var).",
     )
     parser.add_argument(
         "--output",
@@ -403,7 +364,10 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     dataset_ids = load_dataset_ids()
-    headers = build_headers(args.app_token, args.secret_token)
+
+    app_token = args.app_token if args.app_token is not None else load_socrata_token()
+    secret_token = args.secret_token if args.secret_token is not None else load_socrata_secret_token()
+    headers = build_headers(app_token, secret_token)
 
     tasks = list(build_tasks(dataset_ids, args.year, args.month))
     if not tasks:

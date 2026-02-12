@@ -10,9 +10,9 @@ Usage:
     python scripts/local/data/update_ridership_data.py --year 2025 --month 6    # June 2025 only
     python scripts/local/data/update_ridership_data.py --force                  # overwrite existing files
 
-Environment variables:
+Environment variables (or set in .env at repo root):
     SOCRATA_APP_TOKEN      App token for Socrata API
-    SOCRATA_SECRET_TOKEN   Secret token for Socrata API
+    SOCRATA_SECRET_TOKEN   Secret token for Socrata API (optional)
 """
 
 from __future__ import annotations
@@ -27,12 +27,21 @@ import os
 import sqlite3
 import sys
 from threading import Lock
-import time
 from datetime import date
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple
 
+# Ensure repo root is on sys.path so that ``scripts.utils`` is importable.
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
+
 import requests
+from scripts.utils.socrata import (
+    build_headers,
+    load_socrata_token,
+    load_socrata_secret_token,
+    repo_root,
+    request_json,
+)
 try:
     from rich.console import Console
     from rich.progress import (
@@ -52,13 +61,7 @@ except ImportError:
     TaskID = int  # type: ignore[assignment]
     RICH_AVAILABLE = False
 
-# Default credentials (can be overridden via env/CLI).
-DEFAULT_APP_TOKEN = os.getenv("SOCRATA_APP_TOKEN", "PSOinhnLdpy9yMfRdcYzUsJNy")
-DEFAULT_SECRET_TOKEN = os.getenv("SOCRATA_SECRET_TOKEN", "4MWd4bOFT-e8fv7YrXh427YfHSrblNqUSX7m")
-
 DEFAULT_PAGE_SIZE = 50000
-REQUEST_TIMEOUT = 60
-MAX_RETRIES = 5
 DEFAULT_MAX_WORKERS = max(1, (os.cpu_count() or 2) - 1)
 LINE_COUNT_CHUNK_SIZE = 1024 * 1024
 DEFAULT_DUPLICATE_SAMPLE_LIMIT = 5
@@ -204,11 +207,6 @@ def positive_int(value: str) -> int:
     return parsed
 
 
-def repo_root() -> Path:
-    """Return the repository root directory."""
-    return Path(__file__).resolve().parents[3]
-
-
 def load_dataset_ids() -> Dict[str, str]:
     """Load year-to-dataset-id mapping from JSON config."""
     config_path = repo_root() / "references" / "dataset_id_on_nyopendata.json"
@@ -251,51 +249,6 @@ def get_month_where_clause(year: int, month: int) -> str:
     """Build SoQL where clause for one month."""
     start_ts, end_ts = compute_date_range(year, month)
     return f"transit_timestamp >= '{start_ts}' AND transit_timestamp < '{end_ts}'"
-
-
-def build_headers(app_token: str, secret_token: str) -> Dict[str, str]:
-    """Build request headers with authentication."""
-    headers = {
-        "Accept": "application/json",
-        "X-App-Token": app_token,
-    }
-    if secret_token:
-        headers["X-App-Token-Secret"] = secret_token
-    return headers
-
-
-def request_json(
-    session: requests.Session,
-    endpoint: str,
-    params: Dict[str, str],
-    headers: Dict[str, str],
-) -> List[Dict[str, str]]:
-    """Make a request with retry logic."""
-    attempt = 0
-    while attempt < MAX_RETRIES:
-        try:
-            response = session.get(endpoint, params=params, headers=headers, timeout=REQUEST_TIMEOUT)
-        except requests.RequestException as exc:
-            attempt += 1
-            time.sleep(min(2**attempt, 60))
-            if attempt >= MAX_RETRIES:
-                raise RuntimeError("Request failed after retries") from exc
-            continue
-
-        if response.status_code == 429:
-            attempt += 1
-            time.sleep(min(2**attempt, 60))
-            continue
-
-        response.raise_for_status()
-        payload = response.json()
-        if isinstance(payload, dict) and payload.get("code") == "not_found":
-            raise RuntimeError(f"SODA3 endpoint reported not_found: {payload}")
-        if not isinstance(payload, list):
-            raise RuntimeError(f"Unexpected payload shape: {payload!r}")
-        return payload
-
-    return []
 
 
 def count_rows(
@@ -746,13 +699,13 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--app-token",
-        default=DEFAULT_APP_TOKEN,
-        help="Socrata app token (overrides env).",
+        default=None,
+        help="Socrata app token (default: from .env or SOCRATA_APP_TOKEN env var).",
     )
     parser.add_argument(
         "--secret-token",
-        default=DEFAULT_SECRET_TOKEN,
-        help="Socrata secret token (overrides env).",
+        default=None,
+        help="Socrata secret token (default: from .env or SOCRATA_SECRET_TOKEN env var).",
     )
     return parser.parse_args()
 
@@ -760,12 +713,17 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
 
-    if not args.app_token:
-        print("❌ App token is required (set SOCRATA_APP_TOKEN or use --app-token)")
-        return 1
+    app_token = args.app_token if args.app_token is not None else load_socrata_token()
+    secret_token = args.secret_token if args.secret_token is not None else load_socrata_secret_token()
+    if not app_token:
+        print(
+            "⚠️  No Socrata app token found. Running without authentication "
+            "(lower rate limits apply). Set SOCRATA_APP_TOKEN in .env, as an "
+            "env var, or use --app-token. See references/docs/socrata_api_setup.md."
+        )
 
     dataset_ids = load_dataset_ids()
-    headers = build_headers(args.app_token, args.secret_token)
+    headers = build_headers(app_token, secret_token)
 
     # Determine years to process
     if args.year:
