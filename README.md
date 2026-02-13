@@ -54,7 +54,7 @@ mta_ridership/
 │   └── external/           # Reference data (stations, PUMA boundaries)
 ├── results/
 │   ├── baseline/           # 2015-2019 monthly averages
-│   ├── ridership_local/    # Local modern ridership metrics
+│   ├── ridership/         # Local modern ridership metrics
 │   └── final/              # Final analysis with comparisons
 ├── references/
 │   ├── docs/               # Detailed documentation

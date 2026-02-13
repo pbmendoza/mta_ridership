@@ -18,9 +18,9 @@ Usage:
     python pipelines/calculate_baseline_local_turnstile.py --years 2017 2018 2019
 
 Output:
-    results/baseline_turnstile/monthly_baseline_station.csv
-    results/baseline_turnstile/monthly_baseline_puma.csv
-    results/baseline_turnstile/monthly_baseline_nyc.csv
+    data/local/baseline_turnstile/monthly_baseline_station.csv
+    data/local/baseline_turnstile/monthly_baseline_puma.csv
+    data/local/baseline_turnstile/monthly_baseline_nyc.csv
 """
 
 from __future__ import annotations
@@ -88,7 +88,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
             "Run the historical turnstile pipeline to generate baseline "
-            "ridership files (results/baseline/)."
+            "ridership files (data/local/baseline_turnstile/)."
         )
     )
     parser.add_argument(
@@ -127,8 +127,8 @@ def main() -> int:
 
         # Clean baseline output directory
         print_header("Step 0: Cleaning Baseline Output")
-        removed = clean_csv_dir(PROJECT_ROOT / "results" / "baseline_turnstile")
-        print_step(f"Cleaned results/baseline_turnstile ({removed} file(s))")
+        removed = clean_csv_dir(PROJECT_ROOT / "data" / "local" / "baseline_turnstile")
+        print_step(f"Cleaned data/local/baseline_turnstile ({removed} file(s))")
 
         # Step 1: Stage turnstile data
         print_header("Step 1: Stage Turnstile Data")
@@ -169,9 +169,9 @@ def main() -> int:
         print(f"Completed at: {datetime.now().isoformat(timespec='seconds')}")
         print(f"Total time: {minutes} minute(s) {seconds} second(s)")
         print("\nOutputs:")
-        print("  - results/baseline_turnstile/monthly_baseline_station.csv")
-        print("  - results/baseline_turnstile/monthly_baseline_puma.csv")
-        print("  - results/baseline_turnstile/monthly_baseline_nyc.csv")
+        print("  - data/local/baseline_turnstile/monthly_baseline_station.csv")
+        print("  - data/local/baseline_turnstile/monthly_baseline_puma.csv")
+        print("  - data/local/baseline_turnstile/monthly_baseline_nyc.csv")
         return 0
 
     except (FileNotFoundError, RuntimeError, subprocess.CalledProcessError) as exc:

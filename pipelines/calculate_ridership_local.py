@@ -17,9 +17,9 @@ Usage:
     python pipelines/calculate_ridership_local.py
 
 Output:
-    - results/ridership_local/monthly_ridership_station.csv
-    - results/ridership_local/monthly_ridership_puma.csv
-    - results/ridership_local/monthly_ridership_nyc.csv
+    - data/local/ridership/monthly_ridership_station.csv
+    - data/local/ridership/monthly_ridership_puma.csv
+    - data/local/ridership/monthly_ridership_nyc.csv
 """
 
 from __future__ import annotations
@@ -140,7 +140,7 @@ def main() -> int:
         clean_targets = [
             PROJECT_ROOT / "data" / "local" / "staging" / "ridership",
             PROJECT_ROOT / "data" / "local" / "processed" / "ridership",
-            PROJECT_ROOT / "results" / "ridership_local",
+            PROJECT_ROOT / "data" / "local" / "ridership",
         ]
         for target in clean_targets:
             removed = clean_csv_dir(target)
@@ -187,9 +187,9 @@ def main() -> int:
         print(f"Total time: {minutes} minute(s) {seconds} second(s)")
         print("Ran: " + ", ".join(run_summary))
         print("\nOutputs:")
-        print("  - results/ridership_local/monthly_ridership_station.csv")
-        print("  - results/ridership_local/monthly_ridership_puma.csv")
-        print("  - results/ridership_local/monthly_ridership_nyc.csv")
+        print("  - data/local/ridership/monthly_ridership_station.csv")
+        print("  - data/local/ridership/monthly_ridership_puma.csv")
+        print("  - data/local/ridership/monthly_ridership_nyc.csv")
         return 0
 
     except (FileNotFoundError, RuntimeError, subprocess.CalledProcessError) as exc:

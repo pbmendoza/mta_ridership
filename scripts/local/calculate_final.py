@@ -7,7 +7,7 @@ It adds baseline ridership and comparison metrics to show how current ridership 
 to the 2015-2019 baseline period.
 
 Features:
-- Reads ridership data from results/ridership_local/
+- Reads ridership data from data/local/ridership/
 - Reads baseline data from results/baseline/
 - Merges data by geographic level and month
 - Calculates baseline comparison (ridership / baseline_ridership)
@@ -230,7 +230,7 @@ def process_geographic_level(
     ridership_file = f"monthly_ridership_{level}.csv"
     baseline_file = f"monthly_baseline_{level}.csv"
     
-    ridership_path = base_dir / "results" / "ridership_local" / ridership_file
+    ridership_path = base_dir / "data" / "local" / "ridership" / ridership_file
     baseline_path = base_dir / "results" / "baseline" / baseline_file
     
     # Load data
