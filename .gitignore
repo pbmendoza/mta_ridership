@@ -3,7 +3,7 @@
 .claude/
 
 # Raw input files
-data/*
+data/local/
 
 # macOS
 .DS_Store
