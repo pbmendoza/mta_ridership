@@ -1,31 +1,22 @@
 #!/usr/bin/env python3
 """
-Calculate Raw Monthly Ridership Totals from Daily Turnstile Data (2015-2019)
+Calculate non-averaged monthly ridership totals from processed turnstile daily data.
 
-This script processes daily ridership data to create raw monthly totals
-for each station using data from 2015-2019. Unlike the baseline calculation,
-this provides actual monthly ridership values without averaging across years.
+This script reads station-level daily ridership records and aggregates them into
+monthly totals for 2015–2019. It does not apply averaging, station-specific
+baseline year overrides, or outlier filtering. It is intended for historical monthly
+exploration or for manual comparisons with the baseline pipeline outputs.
 
-Purpose:
-- Generate raw monthly ridership data for analysis of seasonal patterns
-- Provide non-averaged data for comparison with baseline averages
-- Create historical monthly data for trend analysis
-
-Features:
-- Processes daily ridership data from 2015-2019
-- Groups by station (complex_id), year, and month
-- Calculates total entries and exits per month
-- No averaging or adjustments applied
-
-Usage:
-    python scripts/calculate_raw_monthly_turnstile.py
+Input:
+- data/processed/turnstile/daily_ridership.csv
+- references/stations/stations_complexes_official.csv
 
 Output:
-    - results/baseline/raw_monthly_turnstile_2015_2019.csv
+- results/baseline/raw_monthly_turnstile_2015_2019.csv
+- logs/calculate_monthly_ridership_using_turnstile.log
 
-Output Format:
-    complex_id, year, month, entries, exits
-    Where entries/exits are the total counts for that specific month/year
+Usage:
+    python scripts/local/calculate_monthly_ridership_using_turnstile.py
 """
 
 import pandas as pd
@@ -36,16 +27,21 @@ from datetime import datetime
 
 def find_project_root() -> Path:
     """Find the project root by looking for .git directory."""
-    current = Path.cwd()
-    
-    if (current / '.git').exists():
-        return current
-    
-    for parent in current.parents:
+    candidates = [Path(__file__).resolve(), *Path(__file__).resolve().parents]
+
+    for current in candidates:
+        if (current / '.git').exists():
+            return current
+
+    cwd = Path.cwd()
+    if (cwd / '.git').exists():
+        return cwd
+
+    for parent in cwd.parents:
         if (parent / '.git').exists():
             return parent
-    
-    return current
+
+    raise RuntimeError("Could not find project root directory.")
 
 
 def setup_logging(base_dir: Path) -> logging.Logger:
@@ -53,7 +49,7 @@ def setup_logging(base_dir: Path) -> logging.Logger:
     log_dir = base_dir / "logs"
     log_dir.mkdir(exist_ok=True)
     
-    log_file = log_dir / "calculate_raw_monthly_turnstile.log"
+    log_file = log_dir / "calculate_monthly_ridership_using_turnstile.log"
     
     logging.basicConfig(
         level=logging.INFO,
