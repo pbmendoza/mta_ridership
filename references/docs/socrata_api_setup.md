@@ -84,4 +84,4 @@ Exact limits are set by NY Open Data and may change.  See
 |--------|---------|
 | `scripts/local/data/update_ridership_data.py` | Download monthly ridership CSVs |
 | `scripts/local/data/update_turnstile_data.py` | Download monthly turnstile CSVs |
-| `scripts/api/calculate_ridership_station_api.py` | Build station-level ridership from API |
+| `scripts/api/calculate_ridership_by_station.py` | Build station-level ridership from API |

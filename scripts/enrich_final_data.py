@@ -17,9 +17,9 @@ Usage:
     python scripts/enrich_final_data.py
 
 Output:
-    - Enriches and sorts data/api/production/monthly_ridership_puma.csv
-    - Enriches and sorts data/api/production/monthly_ridership_station.csv
-    - Sorts data/api/production/monthly_ridership_nyc.csv
+    - Enriches and sorts data/production/monthly_ridership_puma.csv
+    - Enriches and sorts data/production/monthly_ridership_station.csv
+    - Sorts data/production/monthly_ridership_nyc.csv
 
 Performance:
     - Processes files in-memory using pandas
@@ -287,7 +287,7 @@ def main():
     try:
         # Enrich PUMA data
         input_dir = base_dir / "data" / "api" / "processed"
-        output_dir = base_dir / "data" / "api" / "production"
+        output_dir = base_dir / "data" / "production"
         output_dir.mkdir(parents=True, exist_ok=True)
 
         puma_matched, puma_missing = enrich_puma_data(
