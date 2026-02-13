@@ -34,4 +34,4 @@ The baseline calculation uses station-specific year ranges for ~28 stations that
 
 ## Practical Note
 
-The baseline covers **2015–2019 only** and is static. The results are cached in `results/baseline/`, and the final merge pipeline (`run_pipeline.py`) validates these files before calculating final metrics. To regenerate baseline files, run `pipelines/calculate_baseline_local_turnstile.py`. Modern local ridership outputs are generated separately via `pipelines/calculate_ridership_local.py`. Even if an API approach were feasible, the benefit would be minimal since the baseline is computed once and never changes.
+The baseline covers **2015–2019 only** and is static. The results are cached in `results/baseline/`. To regenerate baseline files, run `pipelines/calculate_baseline_local_turnstile.py`. Modern local ridership outputs are generated separately via `pipelines/calculate_ridership_local.py`. Even if an API approach were feasible, the benefit would be minimal since the baseline is computed once and never changes.

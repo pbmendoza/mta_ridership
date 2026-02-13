@@ -107,12 +107,6 @@ Each file includes:
 
 ### Running the Pipeline
 
-Run the final merge pipeline (requires existing baseline and local ridership outputs):
-
-```bash
-python run_pipeline.py
-```
-
 To generate or regenerate baseline files from historical turnstile data:
 
 ```bash
@@ -125,14 +119,23 @@ To generate or regenerate modern local ridership outputs:
 python pipelines/calculate_ridership_local.py
 ```
 
+To refresh final outputs from existing baseline and ridership inputs:
+
+```bash
+python scripts/local/calculate_final.py
+python scripts/enrich_final_data.py
+```
+
 ### Adding New Data
 1. Place raw files in appropriate `data/local/raw/` subdirectory
 2. Update staging scripts if format differs
-3. Run the local ridership pipeline, then final merge:
+3. Run baseline generation, local ridership generation, then final merge/enrichment:
 
 ```bash
+python pipelines/calculate_baseline_local_turnstile.py
 python pipelines/calculate_ridership_local.py
-python run_pipeline.py
+python scripts/local/calculate_final.py
+python scripts/enrich_final_data.py
 ```
 
 ## 📊 Data Sources
