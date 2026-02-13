@@ -1,155 +1,141 @@
-# 🚇 MTA Ridership Analysis Pipeline
+# MTA Ridership Pipeline
 
-## 📋 Overview
+This repository powers OSDC's NYC Subway Recovery Tracker data processing.
 
-This repository contains the data processing pipeline for **OSDC's NYC Subway Recovery Tracker** project ([https://www.osc.ny.gov/osdc/subway-recovery-tracker](https://www.osc.ny.gov/osdc/subway-recovery-tracker)). The pipeline processes NYC subway ridership data from two primary sources to track post-pandemic recovery patterns:
+The current production pipeline is API-first:
+- Ridership is pulled directly from NY Open Data (Socrata API).
+- Baseline is calculated from the MTA 2017-2019 hourly ridership API dataset.
+- Final outputs are produced from API-derived intermediate files.
 
-- **Historical turnstile data (2014–2023; baseline uses 2015–2019)**: Individual turnstile swipe counts used to establish the pre-pandemic baseline
-- **Modern ridership data (2020–present)**: Station-level ridership including OMNY adoption metrics
+Local raw-file and turnstile workflows are still in the repo as legacy code and are not the active production path.
 
-The pipeline produces monthly ridership metrics at three geographic levels:
-- **Station Complex**: Individual subway station complexes
-- **PUMA**: Public Use Microdata Areas (neighborhood-level)
-- **NYC**: City-wide aggregation
+## Current Pipeline (Active)
 
-## 📚 Documentation
-
-### 📖 Available Documentation
-
-For detailed information about specific aspects of the project, please refer to these documentation files:
-
-#### 1. [**Subway Station Mapping**](references/docs/subway_stations.md) 🏷️
-Explains the complex challenge of mapping inconsistent station names across different data sources. Details the manual crosswalk created to link historical turnstile data with modern station complex IDs. Essential for understanding how we ensure data consistency across time periods.
-
-#### 2. [**Turnstile Data Documentation**](references/docs/turnstile_data.md) 🎫
-Comprehensive guide to the historical turnstile dataset (2010-2023). Covers the evolution from legacy to modern formats, data quality issues including the infamous Orchard Beach mystery, and validation results showing <1% difference from official MTA statistics.
-
-#### 3. [**PUMA Mapping Documentation**](references/docs/puma_mapping.md) 🗺️
-Details how we use geospatial analysis to assign each subway station to its corresponding Public Use Microdata Area (PUMA). Includes the algorithm, data sources, and edge cases for neighborhood-level ridership analysis.
-
-#### 4. [**SCP Identifier Documentation**](references/docs/scp_identifier.md) 🔐
-Technical explanation of the Subunit Channel Position (SCP) identifier system used in turnstile data. Understanding SCPs is crucial for correctly identifying individual turnstiles and avoiding data duplication.
-
-#### 5. [**Data Processing Filters**](references/docs/data_filters.md) 🔍
-Complete list of all filters, thresholds, and data quality controls applied during processing. Includes outlier detection, counter reset handling, and station exclusions with detailed rationales for each decision.
-
-## 📊 Data Flow Architecture
-
-```
-Raw Turnstile Files → stage → process → calculate_baseline ↘
-                                                            calculate_final → enrich_final → Results
-Raw Ridership Files → stage → process → calculate_ridership ↗
-```
-
-## 📁 Project Structure
-
-```
-mta_ridership/
-├── data/
-│   ├── local/
-│   │   ├── raw/            # Original data files
-│   │   ├── staging/        # Intermediate processing
-│   │   ├── processed/      # Clean, aggregated data
-│   │   ├── baseline/       # Baseline files used by calculate_final
-│   │   ├── production/     # Final analysis files
-│   │   ├── baseline_turnstile/ # Local turnstile baseline artifacts
-│   │   └── ridership_turnstile/ # Raw monthly historical turnstile totals
-│   │   └── quarantine/     # Filtered-out records
-│   └── external/           # Reference data (stations, PUMA boundaries)
-├── references/
-│   ├── docs/               # Detailed documentation
-│   └── stations/           # Station metadata and mappings
-├── scripts/                # Processing scripts
-└── logs/                   # Execution logs
-```
-
-## 🔧 Key Features
-
-### Data Quality Controls
-- **Outlier Detection**: Removes turnstiles with abnormal record counts
-- **Threshold Filtering**: Caps unrealistic swipe counts (max 7,200 per 4-hour period)
-- **Counter Reset Handling**: Manages when cumulative counters reset to zero
-- **Station Mapping**: Links historical names to official complex IDs
-
-### Processing Capabilities
-- Processes modern-format turnstile files (Oct 2014+)
-- Tracks OMNY adoption alongside traditional MetroCard usage
-- Aggregates data to multiple geographic levels
-- Calculates baseline comparisons for recovery tracking
-- Enriches final output with human-readable PUMA and station names
-
-## 📈 Output Files
-
-### Station-Level Metrics
-- `data/local/production/monthly_ridership_station.csv`: Monthly ridership by station complex
-
-### Neighborhood-Level Metrics
-- `data/local/production/monthly_ridership_puma.csv`: Monthly ridership by PUMA
-
-### City-Wide Metrics
-- `data/local/production/monthly_ridership_nyc.csv`: NYC total monthly ridership
-
-Each file includes:
-- Total ridership counts
-- OMNY adoption percentages (post-2020)
-- Comparison to 2015-2019 baseline (uses entries only, not exits)
-- Period key (`period`, e.g., `YYYY-MM-01`)
-- Human-readable station and PUMA names (enriched output)
-
-**Note on Baseline Comparisons**: The `baseline_ridership` field represents average monthly **entries** from 2015-2019. While both entries and exits are calculated during baseline processing, only entries are used for comparison metrics. This provides a consistent measure for tracking subway usage recovery.
-
-## 🛠️ Development
-
-### Project Conventions
-- All scripts use relative paths based on project root
-- Comprehensive logging to `logs/` directory
-- Automatic project root detection via `.git` directory
-- Shared script bootstrap helpers live in `scripts/utils/runtime.py`
-
-### Running the Pipeline
-
-To generate or regenerate baseline files from historical turnstile data:
+### 1) Build station-level monthly ridership from API (2020+)
 
 ```bash
-python pipelines/calculate_baseline_local_turnstile.py
+python scripts/api/calculate_ridership_by_station.py
 ```
 
-To generate or regenerate modern local ridership outputs:
+Output:
+- `data/api/ridership/monthly_ridership_station.csv`
+
+Notes:
+- Default mode is incremental (only fetches missing months).
+- Supports targeted refresh (`--year`, `--month`) and full refresh (`--full-refresh`).
+- Filters to subway only, excludes complex `502`, skips incomplete months, and outputs `total/weekday/weekend`.
+
+### 2) Aggregate station ridership to PUMA and NYC
 
 ```bash
-python pipelines/calculate_ridership_local.py
+python scripts/api/aggregate_puma_nyc.py
 ```
 
-To refresh final outputs from existing baseline and ridership inputs:
+Outputs:
+- `data/api/ridership/monthly_ridership_puma.csv`
+- `data/api/ridership/monthly_ridership_nyc.csv`
+
+### 3) Calculate baseline from API ridership (2017-2019)
 
 ```bash
-python scripts/local/calculate_final.py
+python scripts/api/calculate_baseline.py
+```
+
+Outputs:
+- `data/api/baseline/monthly_baseline_station.csv`
+- `data/api/baseline/monthly_baseline_puma.csv`
+- `data/api/baseline/monthly_baseline_nyc.csv`
+
+Baseline details:
+- Source dataset: `t69i-h2me` (MTA Subway Hourly Ridership: 2017-2019).
+- January 2017 is excluded (known incomplete month); January baseline uses 2018-2019.
+- Special-case station year rules come from `references/baseline_special_cases.csv`.
+
+### 4) Merge ridership + baseline
+
+```bash
+python scripts/calculate_final.py
+```
+
+Outputs:
+- `data/api/processed/monthly_ridership_station.csv`
+- `data/api/processed/monthly_ridership_puma.csv`
+- `data/api/processed/monthly_ridership_nyc.csv`
+
+### 5) Enrich with names and publish production files
+
+```bash
 python scripts/enrich_final_data.py
 ```
 
-### Adding New Data
-1. Place raw files in appropriate `data/local/raw/` subdirectory
-2. Update staging scripts if format differs
-3. Run baseline generation, local ridership generation, then final merge/enrichment:
+Outputs:
+- `data/production/monthly_ridership_station.csv`
+- `data/production/monthly_ridership_puma.csv`
+- `data/production/monthly_ridership_nyc.csv`
+
+## Quick Start
+
+1. Install dependencies:
 
 ```bash
-python pipelines/calculate_baseline_local_turnstile.py
-python pipelines/calculate_ridership_local.py
-python scripts/local/calculate_final.py
+pip install -r requirements.txt
+```
+
+2. Configure Socrata credentials (recommended to avoid rate limits):
+
+```bash
+cp .env.example .env
+```
+
+Then set:
+- `SOCRATA_APP_TOKEN`
+- `SOCRATA_SECRET_TOKEN` (optional)
+
+3. Run active pipeline steps in order:
+
+```bash
+python scripts/api/calculate_ridership_by_station.py
+python scripts/api/aggregate_puma_nyc.py
+python scripts/api/calculate_baseline.py
+python scripts/calculate_final.py
 python scripts/enrich_final_data.py
 ```
 
-## 📊 Data Sources
+## Data Model Summary
 
-- **Turnstile Data**: Historical MTA turnstile records (retired dataset)
-- **Modern Ridership**: MTA ridership API data
-- **Station Mapping**: MTA official station complex definitions
-- **PUMA Boundaries**: 2020 Census geographic boundaries (updated 2025)
+All three geographic levels (station, PUMA, NYC) use:
+- `year`, `month`, `period`
+- `day_group` in `total`, `weekday`, `weekend`
+- `ridership`
+- `omny_pct` (ridership outputs)
+- `baseline`, `baseline_comparison` (processed outputs)
 
-## 🤝 Contributing
+Station and PUMA production files are enriched with:
+- `station_name` (station-level)
+- `puma_name` (PUMA-level)
 
-This project is maintained by the Office of the [Office of the State Deputy Comptroller for NYC](https://www.osc.ny.gov/osdc) and [Better Data Initiative](https://bdin.org). For questions or contributions related to the NYC Subway Recovery Tracker, please refer to the official project page.
+## Repository Layout
 
-## 📝 License
+Active paths:
+- `scripts/api/` - API data extraction and aggregation scripts
+- `scripts/calculate_final.py` - API ridership + baseline merge
+- `scripts/enrich_final_data.py` - final enrichment and sorting
+- `data/api/` - API-derived intermediate outputs
+- `data/production/` - final published outputs
 
-This project is part of the public data analysis efforts by the New York State Comptroller's Office.
+Legacy paths (not active production workflow):
+- `scripts/local/`
+- `pipelines/calculate_ridership_local.py`
+- `pipelines/calculate_baseline_local_turnstile.py`
+- `data/local/`
+
+## Reference Docs
+
+- `references/docs/socrata_api_setup.md`
+- `references/scripts/api_ridership_filters.md`
+- `references/scripts/calculate_baseline.md`
+- `references/docs/puma_mapping.md`
+
+## Maintainers
+
+Maintained by OSDC / NYS Office of the State Comptroller for the NYC Subway Recovery Tracker project.
