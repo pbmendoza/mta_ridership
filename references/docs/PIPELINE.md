@@ -198,7 +198,7 @@ If using OneDrive, large file operations may cause sync delays:
 3. Consider moving data directory outside OneDrive
 
 ### Baseline Special Cases Verification
-- Use `scripts/verify_baseline_special_cases.py` to validate entries in `references/baseline_special_cases.csv` against official station references.
+- Use `scripts/tools/validate_baseline_special_cases_vs_official_stations.py` to validate entries in `references/baseline_special_cases.csv` against official station references.
 - Check verification and calculation logs under `logs/` (e.g., `baseline_special_cases_verification.txt`, `calculate_baseline.log`).
 
 ## Maintenance

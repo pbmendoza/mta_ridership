@@ -1,32 +1,42 @@
 #!/usr/bin/env python3
-"""
-Verify baseline_special_cases.csv against stations_complexes_official.csv
+"""Validate baseline special cases against official station complex definitions.
 
-This script checks:
-1. If complex_id exists in stations_complexes_official.csv
-2. If station_name matches "Stop Name + Display Name" from the official file
-3. Reports any discrepancies found
+Inputs:
+    - references/baseline_special_cases.csv
+      Expected columns: complex_id, station_name, baseline_years
+    - references/stations/stations_complexes_official.csv
+      Expected columns: Complex ID, Stop Name, Display Name
+
+Behavior:
+    1) Loads both CSV files.
+    2) Builds the official full station name as ``Stop Name`` + ``Display Name``.
+    3) Validates each special-case row to ensure:
+       - complex_id exists in the official file,
+       - station_name matches one of that complex's official station names.
+    4) Prints all discrepancies and duplicate complex_id entries.
+
+Outputs:
+    - Human-readable verification report to stdout.
+    - Optional file logs/baseline_special_cases_verification.txt when
+      discrepancies are found.
 """
 
 import pandas as pd
 from pathlib import Path
 
-def find_project_root() -> Path:
-    """Find the project root by looking for .git directory."""
-    current = Path.cwd()
-    
-    if (current / '.git').exists():
-        return current
-    
-    for parent in current.parents:
-        if (parent / '.git').exists():
-            return parent
-    
+def find_project_root(start: Path | None = None) -> Path:
+    """Find the project root by searching upward for a ``.git`` directory."""
+    current = start or Path.cwd()
+
+    for path in [current, *current.parents]:
+        if (path / '.git').exists():
+            return path
+
     return current
 
 def main():
     # Set up paths
-    base_dir = find_project_root()
+    base_dir = find_project_root(Path(__file__).resolve().parent)
     special_cases_path = base_dir / "references" / "baseline_special_cases.csv"
     official_stations_path = base_dir / "references" / "stations" / "stations_complexes_official.csv"
     

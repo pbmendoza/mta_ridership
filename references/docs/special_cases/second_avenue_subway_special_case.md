@@ -61,7 +61,7 @@ complex_id,baseline_years,station_name,reason,notes
 477,"2017, 2018, 2019",72 St-2 Ave (Q),Second Avenue Subway Phase 1 station opened January 1, 2017.,Excluded years when the stations were not open.
 ```
 
-The `scripts/local/calculate_baseline.py` script reads this configuration and divides monthly totals by the number of specified baseline years (3). Use `scripts/verify_baseline_special_cases.py` to validate the configuration against official station references and see `logs/` for verification output.
+The `scripts/local/calculate_baseline.py` script reads this configuration and divides monthly totals by the number of specified baseline years (3). Use `scripts/tools/validate_baseline_special_cases_vs_official_stations.py` to validate the configuration against official station references and see `logs/` for verification output.
 
 ### Rationale
 
