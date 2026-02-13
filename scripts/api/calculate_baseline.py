@@ -8,9 +8,9 @@ January 2017 is excluded (first 12 days missing); January uses 2-year average.
 Special cases from references/baseline_special_cases.csv are respected.
 
 Output:
-    results/baseline/monthly_baseline_station.csv
-    results/baseline/monthly_baseline_puma.csv
-    results/baseline/monthly_baseline_nyc.csv
+    data/api/baseline/monthly_baseline_station.csv
+    data/api/baseline/monthly_baseline_puma.csv
+    data/api/baseline/monthly_baseline_nyc.csv
 """
 
 from __future__ import annotations
@@ -383,7 +383,7 @@ def main() -> None:
     baseline["ridership"] = baseline["ridership"].round(2)
 
     # Save
-    output_dir = PROJECT_ROOT / "results" / "baseline"
+    output_dir = PROJECT_ROOT / "data" / "api" / "baseline"
     output_dir.mkdir(parents=True, exist_ok=True)
 
     station_path = output_dir / "monthly_baseline_station.csv"

@@ -2,7 +2,7 @@
 """Build station-level monthly ridership metrics directly from NY Open Data API.
 
 This script recreates the schema of:
-    results/ridership/monthly_ridership_station.csv
+    data/api/ridership/monthly_ridership_station.csv
 
 Output columns:
     complex_id, year, month, period, day_group, ridership, omny_pct
@@ -55,7 +55,7 @@ from scripts.utils.socrata import (
 
 DEFAULT_PAGE_SIZE = 50_000
 DAY_GROUP_ORDER = ["total", "weekday", "weekend"]
-OUTPUT_REL_PATH = Path("results/ridership/monthly_ridership_station.csv")
+OUTPUT_REL_PATH = Path("data/api/ridership/monthly_ridership_station.csv")
 
 
 @dataclass(frozen=True)
