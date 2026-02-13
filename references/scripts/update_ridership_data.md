@@ -6,7 +6,7 @@ Download monthly MTA ridership CSVs from NY Open Data (Socrata SODA3), with comp
 
 `scripts/local/data/update_ridership_data.py` downloads monthly ridership data into:
 
-`data/raw/ridership/{year}/{month}.csv`
+`data/local/raw/ridership/{year}/{month}.csv`
 
 It supports:
 - downloading one month, one year, or all configured years/months
@@ -89,7 +89,7 @@ python scripts/local/data/update_ridership_data.py --year 2025 --max-workers 2
 ## Output Files
 
 Final files:
-- `data/raw/ridership/{year}/{month}.csv`
+- `data/local/raw/ridership/{year}/{month}.csv`
 
 Temporary/intermediate files:
 - download temp: `{month}.csv.tmp` (same directory as final output)

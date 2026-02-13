@@ -209,8 +209,8 @@ def load_dataset_ids(config: DatasetConfig) -> Dict[str, str]:
 
 
 def get_output_path(config: DatasetConfig, year: int, month: int) -> Path:
-    """Return output path: data/raw/{subdir}/{year}/{month}.csv"""
-    return repo_root() / "data" / "raw" / config.output_subdir / str(year) / f"{month}.csv"
+    """Return output path: data/local/raw/{subdir}/{year}/{month}.csv"""
+    return repo_root() / "data" / "local" / "raw" / config.output_subdir / str(year) / f"{month}.csv"
 
 
 def get_last_day_of_month(year: int, month: int) -> int:

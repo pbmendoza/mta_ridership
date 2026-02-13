@@ -7,7 +7,7 @@ monthly ridership outputs used by the final merge pipeline.
 
 Steps:
     1. Validate dependencies and required scripts.
-    2. Discover raw ridership files in data/raw/ridership/.
+    2. Discover raw ridership files in data/local/raw/ridership/.
     3. Clean ridership staging/processed/output directories.
     4. Stage each raw ridership file.
     5. Process each staged ridership file.
@@ -34,7 +34,7 @@ from typing import Iterable, List
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 SCRIPTS_DIR = PROJECT_ROOT / "scripts" / "local"
-RIDERSHIP_RAW_DIR = PROJECT_ROOT / "data" / "raw" / "ridership"
+RIDERSHIP_RAW_DIR = PROJECT_ROOT / "data" / "local" / "raw" / "ridership"
 
 SCRIPTS_REQUIRED = [
     SCRIPTS_DIR / "stage_ridership_data.py",
@@ -138,8 +138,8 @@ def main() -> int:
 
         print_header("Step 1: Cleaning Modern Ridership Directories")
         clean_targets = [
-            PROJECT_ROOT / "data" / "staging" / "ridership",
-            PROJECT_ROOT / "data" / "processed" / "ridership",
+            PROJECT_ROOT / "data" / "local" / "staging" / "ridership",
+            PROJECT_ROOT / "data" / "local" / "processed" / "ridership",
             PROJECT_ROOT / "results" / "ridership_local",
         ]
         for target in clean_targets:

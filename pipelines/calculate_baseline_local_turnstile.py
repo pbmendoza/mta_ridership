@@ -36,7 +36,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 SCRIPTS_DIR = PROJECT_ROOT / "scripts" / "local"
 SCRIPTS_ROOT = PROJECT_ROOT / "scripts"
-TURNSTILE_COMBINED = PROJECT_ROOT / "data" / "staging" / "turnstile" / "turnstile_combined.csv"
+TURNSTILE_COMBINED = PROJECT_ROOT / "data" / "local" / "staging" / "turnstile" / "turnstile_combined.csv"
 
 SCRIPTS_REQUIRED = [
     SCRIPTS_DIR / "stage_turnstile_data.py",
@@ -95,7 +95,7 @@ def parse_args() -> argparse.Namespace:
         "--force-stage",
         action="store_true",
         help=(
-            "Force regeneration of data/staging/turnstile/turnstile_combined.csv "
+            "Force regeneration of data/local/staging/turnstile/turnstile_combined.csv "
             "even if it already exists."
         ),
     )
@@ -144,7 +144,7 @@ def main() -> int:
         else:
             print_step(
                 "Skipping staging; using cached "
-                "data/staging/turnstile/turnstile_combined.csv"
+                "data/local/staging/turnstile/turnstile_combined.csv"
             )
 
         # Step 2: Process turnstile data

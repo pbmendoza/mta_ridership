@@ -27,8 +27,8 @@ def process_ridership_data(filename: str) -> None:
     """
     # Define project root and paths
     PROJECT_ROOT = Path(__file__).resolve().parents[2]
-    staged_data_path = PROJECT_ROOT / 'data' / 'staging' / 'ridership' / filename
-    processed_path = PROJECT_ROOT / 'data' / 'processed' / 'ridership'
+    staged_data_path = PROJECT_ROOT / 'data' / 'local' / 'staging' / 'ridership' / filename
+    processed_path = PROJECT_ROOT / 'data' / 'local' / 'processed' / 'ridership'
 
     # Create processed data directory if it doesn't exist
     processed_path.mkdir(parents=True, exist_ok=True)

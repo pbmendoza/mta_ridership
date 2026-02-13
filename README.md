@@ -46,9 +46,11 @@ Raw Ridership Files → stage → process → calculate_ridership ↗
 ```
 mta_ridership/
 ├── data/
-│   ├── raw/                # Original data files
-│   ├── staging/            # Intermediate processing
-│   ├── processed/          # Clean, aggregated data
+│   ├── local/
+│   │   ├── raw/            # Original data files
+│   │   ├── staging/        # Intermediate processing
+│   │   ├── processed/      # Clean, aggregated data
+│   │   └── quarantine/     # Filtered-out records
 │   └── external/           # Reference data (stations, PUMA boundaries)
 ├── results/
 │   ├── baseline/           # 2015-2019 monthly averages
@@ -124,7 +126,7 @@ python pipelines/calculate_ridership_local.py
 ```
 
 ### Adding New Data
-1. Place raw files in appropriate `data/raw/` subdirectory
+1. Place raw files in appropriate `data/local/raw/` subdirectory
 2. Update staging scripts if format differs
 3. Run the local ridership pipeline, then final merge:
 

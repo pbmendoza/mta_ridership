@@ -69,7 +69,7 @@ and existing local ridership files in `results/ridership_local/`.
 **Runner**: `pipelines/calculate_ridership_local.py`
 
 This runner executes the modern local branch end-to-end:
-- Stages each raw ridership file from `data/raw/ridership/`
+- Stages each raw ridership file from `data/local/raw/ridership/`
 - Processes staged files into daily aggregates
 - Runs `scripts/local/calculate_ridership.py` to generate monthly metrics
 - Writes outputs to `results/ridership_local/`
@@ -140,8 +140,8 @@ The updated `stage_turnstile_data.py` processes files in batches:
 
 ### Intermediate Files
 
-- `data/staging/`: Combined raw data files
-- `data/processed/`: Cleaned and aggregated data
+- `data/local/staging/`: Combined raw data files
+- `data/local/processed/`: Cleaned and aggregated data
 - `results/baseline/`: Historical baseline metrics
 - `results/ridership_local/`: Modern local ridership metrics
 
@@ -184,7 +184,7 @@ If turnstile staging fails with memory errors:
 Ensure all directories exist:
 
 ```bash
-mkdir -p data/{raw,staging,processed,quarantine}/{turnstile,ridership}
+mkdir -p data/local/{raw,staging,processed,quarantine}/{turnstile,ridership}
 mkdir -p results/{baseline,ridership_local,final}
 mkdir -p logs
 ```
@@ -205,8 +205,8 @@ If using OneDrive, large file operations may cause sync delays:
 
 ### Adding New Data
 
-1. **New turnstile files**: Place in `data/raw/turnstile/`
-2. **New ridership files**: Place in `data/raw/ridership/`
+1. **New turnstile files**: Place in `data/local/raw/turnstile/`
+2. **New ridership files**: Place in `data/local/raw/ridership/`
 3. Run `python pipelines/calculate_ridership_local.py`
 4. Run `python run_pipeline.py` (run `python pipelines/calculate_baseline_local_turnstile.py` first if baseline needs regeneration)
 

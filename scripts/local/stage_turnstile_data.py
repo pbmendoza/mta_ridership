@@ -41,7 +41,7 @@ Usage:
         python stage_turnstile_data.py
 
 Output:
-    Final processed file saved in data/staging/turnstile/:
+    Final processed file saved in data/local/staging/turnstile/:
     - turnstile_combined.csv: Complete processed dataset ready for analysis
 
 Performance:
@@ -109,8 +109,8 @@ class TurnstileDataPipeline:
         self.base_dir = base_dir or find_project_root()
         
         # Define paths relative to project root
-        self.raw_dir = self.base_dir / "data" / "raw" / "turnstile"
-        self.staging_dir = self.base_dir / "data" / "staging" / "turnstile"
+        self.raw_dir = self.base_dir / "data" / "local" / "raw" / "turnstile"
+        self.staging_dir = self.base_dir / "data" / "local" / "staging" / "turnstile"
         self.references_dir = self.base_dir / "references" / "stations"
         
         # Ensure directories exist

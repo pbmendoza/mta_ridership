@@ -10,7 +10,7 @@ The MTA Turnstile Dataset provides granular subway ridership data from 2010-2023
 
 ## Data Location
 
-**Raw Files**: [`data/raw/turnstile/`](../../data/raw/turnstile/)
+**Raw Files**: [`data/local/raw/turnstile/`](../../data/local/raw/turnstile/)
 - Format: Plain text files (`turnstile_YYMMDD.txt`)
 - Frequency: Weekly snapshots (Saturdays)
 - Size: ~750 files covering 13+ years
@@ -80,7 +80,7 @@ A002,R051,02-00-00,LEXINGTON AVE,NQR456,BMT,10/31/2015,00:00:00,REGULAR,00053823
 ## Data Quality Issues
 
 ### Corrupted File Alert
-**File**: [`turnstile_120714.txt`](../../data/raw/turnstile/turnstile_120714.txt) (July 14, 2012)
+**File**: [`turnstile_120714.txt`](../../data/local/raw/turnstile/turnstile_120714.txt) (July 14, 2012)
 
 Severe corruption including:
 - Malformed headers with field names as data
@@ -101,12 +101,12 @@ Investigation reveals that control area "OB01" wasn't for a subway station at al
 
 The historical context: After World War II, the city's Surface Transportation Corp. (later MABSTOA) installed waist-high turnstiles at the beach to manage the huge crowds. Beachgoers would queue, drop a special "Orchard Beach Turnstile" token, and board return buses to Pelham Bay Park without requiring the driver to collect fares. These tokens first appeared in June 1949 and were struck again in 1954. Since these were legitimate fare-control equipment, when NYCT computerized the system in the 1990s, it assigned the location a standard four-character control-area ID: OB01 (Orchard Beach, control area #1).
 
-**Processing Action**: These records are filtered out and quarantined during data processing. See [`data/quarantine/turnstile/ORCHARD_BEACH_records.csv`](../../data/quarantine/turnstile/ORCHARD_BEACH_records.csv). Also see filtering rationale in [`references/docs/data_filters.md`](data_filters.md).
+**Processing Action**: These records are filtered out and quarantined during data processing. See [`data/local/quarantine/turnstile/ORCHARD_BEACH_records.csv`](../../data/local/quarantine/turnstile/ORCHARD_BEACH_records.csv). Also see filtering rationale in [`references/docs/data_filters.md`](data_filters.md).
 
 ## Processed Data Summary
 
 ### Combined Dataset
-**File**: [`data/staging/turnstile/turnstile_combined.csv`](../../data/staging/turnstile/turnstile_combined.csv)
+**File**: [`data/local/staging/turnstile/turnstile_combined.csv`](../../data/local/staging/turnstile/turnstile_combined.csv)
 - **Total Records**: 90,263,930
 - **Date Range**: October 11, 2014 - May 5, 2023
 - **Unique Stations**: 572

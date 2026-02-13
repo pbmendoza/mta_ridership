@@ -8,7 +8,7 @@ Purpose:
     turnstile data and creates a reference file for station metadata.
 
 Features:
-    - Reads from combined turnstile data (data/staging/turnstile/turnstile_combined.csv)
+    - Reads from combined turnstile data (data/local/staging/turnstile/turnstile_combined.csv)
     - Extracts only STATION, LINENAME columns
     - Removes duplicate combinations while preserving all three columns
     - Saves unique station reference data to references/stations/stations_turnstile.csv
@@ -51,7 +51,7 @@ def extract_unique_stations() -> None:
     """Extract unique station combinations from turnstile data."""
     # Define paths relative to project root
     base_dir = find_project_root()
-    input_file = base_dir / "data" / "staging" / "turnstile" / "turnstile_combined.csv"
+    input_file = base_dir / "data" / "local" / "staging" / "turnstile" / "turnstile_combined.csv"
     output_dir = base_dir / "references" / "stations"
     output_file = output_dir / "stations_turnstile.csv"
     

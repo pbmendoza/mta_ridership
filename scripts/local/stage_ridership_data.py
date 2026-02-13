@@ -2,7 +2,7 @@
 
 This script loads a specified CSV file containing MTA ridership data,
 filters it to include only subway-related entries, selects relevant columns,
-and saves the processed data to the 'data/staging/ridership' directory.
+and saves the processed data to the 'data/local/staging/ridership' directory.
 
 Usage:
     python scripts/local/stage_ridership_data.py
@@ -27,7 +27,7 @@ def stage_ridership_data(filename: str) -> None:
     staged CSV.
 
     Args:
-        filename: Name of the raw ridership CSV in `data/raw/ridership`.
+        filename: Name of the raw ridership CSV in `data/local/raw/ridership`.
 
     Raises:
         ValueError: If required columns are missing or `ridership` contains
@@ -35,8 +35,8 @@ def stage_ridership_data(filename: str) -> None:
     """
     # Define project root and paths
     PROJECT_ROOT = Path(__file__).resolve().parents[2]
-    raw_data_path = PROJECT_ROOT / 'data' / 'raw' / 'ridership' / filename
-    staging_path = PROJECT_ROOT / 'data' / 'staging' / 'ridership'
+    raw_data_path = PROJECT_ROOT / 'data' / 'local' / 'raw' / 'ridership' / filename
+    staging_path = PROJECT_ROOT / 'data' / 'local' / 'staging' / 'ridership'
 
     # Create staging directory if it doesn't exist
     staging_path.mkdir(parents=True, exist_ok=True)

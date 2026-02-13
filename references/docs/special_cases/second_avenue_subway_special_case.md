@@ -96,5 +96,5 @@ Using 2018-2019 data provides a more accurate baseline because:
 
 - `scripts/local/calculate_baseline.py`: Contains special handling logic
 - `scripts/local/process_turnstile_data.py`: Processes raw turnstile data
-- `data/processed/turnstile/daily_ridership.csv`: Contains the 2017-2019 data
+- `data/local/processed/turnstile/daily_ridership.csv`: Contains the 2017-2019 data
 - `references/docs/special_cases/wtc_cortlandt_special_case.md`: Similar special case documentation

@@ -33,7 +33,7 @@ Usage:
         python scripts/local/process_turnstile_data.py
         
 Output:
-    - data/processed/turnstile/daily_ridership.csv
+    - data/local/processed/turnstile/daily_ridership.csv
     - Summary statistics logged to console
 """
 
@@ -75,8 +75,8 @@ class TurnstileDataProcessor:
     def __init__(self, base_dir: Optional[Path] = None):
         """Initialize processor with paths and logging."""
         self.base_dir = base_dir or find_project_root()
-        self.staging_dir = self.base_dir / "data" / "staging" / "turnstile"
-        self.processed_dir = self.base_dir / "data" / "processed" / "turnstile"
+        self.staging_dir = self.base_dir / "data" / "local" / "staging" / "turnstile"
+        self.processed_dir = self.base_dir / "data" / "local" / "processed" / "turnstile"
         
         # Ensure output directory exists
         self.processed_dir.mkdir(parents=True, exist_ok=True)

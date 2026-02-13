@@ -68,4 +68,4 @@ Monthly ridership totals for WTC-Cortlandt in 2019:
 
 - `scripts/local/calculate_baseline.py`: Contains special handling logic
 - `scripts/local/process_turnstile_data.py`: Processes raw turnstile data
-- `data/processed/turnstile/daily_ridership.csv`: Contains the 2018-2019 data
+- `data/local/processed/turnstile/daily_ridership.csv`: Contains the 2018-2019 data
