@@ -50,12 +50,12 @@ mta_ridership/
 │   │   ├── raw/            # Original data files
 │   │   ├── staging/        # Intermediate processing
 │   │   ├── processed/      # Clean, aggregated data
+│   │   ├── baseline/       # Baseline files used by calculate_final
+│   │   ├── production/     # Final analysis files
+│   │   ├── baseline_turnstile/ # Local turnstile baseline artifacts
+│   │   └── ridership_turnstile/ # Raw monthly historical turnstile totals
 │   │   └── quarantine/     # Filtered-out records
 │   └── external/           # Reference data (stations, PUMA boundaries)
-├── results/
-│   ├── baseline/           # 2015-2019 monthly averages
-│   ├── ridership/         # Local modern ridership metrics
-│   └── final/              # Final analysis with comparisons
 ├── references/
 │   ├── docs/               # Detailed documentation
 │   └── stations/           # Station metadata and mappings
@@ -81,13 +81,13 @@ mta_ridership/
 ## 📈 Output Files
 
 ### Station-Level Metrics
-- `results/final/monthly_ridership_station.csv`: Monthly ridership by station complex
+- `data/local/production/monthly_ridership_station.csv`: Monthly ridership by station complex
 
 ### Neighborhood-Level Metrics
-- `results/final/monthly_ridership_puma.csv`: Monthly ridership by PUMA
+- `data/local/production/monthly_ridership_puma.csv`: Monthly ridership by PUMA
 
 ### City-Wide Metrics
-- `results/final/monthly_ridership_nyc.csv`: NYC total monthly ridership
+- `data/local/production/monthly_ridership_nyc.csv`: NYC total monthly ridership
 
 Each file includes:
 - Total ridership counts

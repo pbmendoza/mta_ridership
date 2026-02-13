@@ -12,7 +12,7 @@ Input:
 - references/stations/stations_complexes_official.csv
 
 Output:
-- results/baseline/raw_monthly_turnstile_2015_2019.csv
+    - data/local/ridership_turnstile/raw_monthly_turnstile_2015_2019.csv
 - logs/calculate_monthly_ridership_using_turnstile.log
 
 Usage:
@@ -69,7 +69,7 @@ def calculate_raw_monthly_totals(base_dir: Path, logger: logging.Logger):
     # Define paths
     input_file = base_dir / "data" / "processed" / "turnstile" / "daily_ridership.csv"
     stations_file = base_dir / "references" / "stations" / "stations_complexes_official.csv"
-    output_dir = base_dir / "results" / "baseline"
+    output_dir = base_dir / "data" / "local" / "ridership_turnstile"
     output_file = output_dir / "raw_monthly_turnstile_2015_2019.csv"
     
     # Ensure output directory exists

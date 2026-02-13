@@ -149,4 +149,4 @@ The script performs the following validation when loading the configuration:
 - `logs/` - Contains verification and calculation logs
 - `references/docs/special_cases/wtc_cortlandt_special_case.md` - Detailed WTC history
 - `references/docs/special_cases/second_avenue_subway_special_case.md` - Second Ave details
-- `results/baseline/` - Output directory for baseline calculations
+- `data/local/baseline_turnstile/` - Output directory for baseline calculations

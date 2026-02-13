@@ -8,10 +8,10 @@ to the 2015-2019 baseline period.
 
 Features:
 - Reads ridership data from data/local/ridership/
-- Reads baseline data from results/baseline/
+- Reads baseline data from data/local/baseline/
 - Merges data by geographic level and month
 - Calculates baseline comparison (ridership / baseline_ridership)
-- Outputs enhanced files to results/final/
+- Outputs enhanced files to data/local/production/
 
 Output columns added:
 - baseline_ridership: Average monthly ridership from 2015-2019
@@ -21,9 +21,9 @@ Usage:
     python scripts/local/calculate_final.py
 
 Output:
-    - results/final/monthly_ridership_station.csv
-    - results/final/monthly_ridership_puma.csv
-    - results/final/monthly_ridership_nyc.csv
+    - data/local/production/monthly_ridership_station.csv
+    - data/local/production/monthly_ridership_puma.csv
+    - data/local/production/monthly_ridership_nyc.csv
 """
 
 import pandas as pd
@@ -231,7 +231,7 @@ def process_geographic_level(
     baseline_file = f"monthly_baseline_{level}.csv"
     
     ridership_path = base_dir / "data" / "local" / "ridership" / ridership_file
-    baseline_path = base_dir / "results" / "baseline" / baseline_file
+    baseline_path = base_dir / "data" / "local" / "baseline" / baseline_file
     
     # Load data
     ridership_df, baseline_df = load_data_pair(
@@ -336,7 +336,7 @@ def main():
     
     try:
         # Define output directory
-        output_dir = base_dir / "results" / "final"
+        output_dir = base_dir / "data" / "local" / "production"
         
         # Process each geographic level
         logger.info("\n=� Processing station-level data...")
