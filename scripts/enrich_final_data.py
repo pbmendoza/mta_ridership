@@ -29,45 +29,12 @@ Performance:
 import pandas as pd
 from pathlib import Path
 import logging
-from datetime import datetime
+import sys
 from typing import Tuple, Dict
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-def find_project_root() -> Path:
-    """Find the project root by looking for .git directory."""
-    current = Path.cwd()
-    
-    if (current / '.git').exists():
-        return current
-    
-    for parent in current.parents:
-        if (parent / '.git').exists():
-            return parent
-    
-    return current
-
-
-def setup_logging(base_dir: Path) -> logging.Logger:
-    """Set up logging configuration."""
-    log_dir = base_dir / "logs"
-    log_dir.mkdir(exist_ok=True)
-    
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    log_file = log_dir / f"enrich_final_data_{timestamp}.log"
-    
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.FileHandler(log_file),
-            logging.StreamHandler()
-        ]
-    )
-    
-    logger = logging.getLogger(__name__)
-    logger.info(f"Logging to: {log_file.relative_to(base_dir)}")
-    
-    return logger
+from scripts.utils.runtime import find_project_root, setup_script_logging
 
 
 def load_puma_crosswalk(base_dir: Path, logger: logging.Logger) -> pd.DataFrame:
@@ -278,7 +245,12 @@ def main():
     """Main execution function."""
     # Find project root and set up logging
     base_dir = find_project_root()
-    logger = setup_logging(base_dir)
+    logger, log_path = setup_script_logging(
+        base_dir=base_dir,
+        logger_name=__name__,
+        timestamped_prefix="enrich_final_data",
+    )
+    logger.info(f"Logging to: {log_path.relative_to(base_dir)}")
     
     logger.info("=" * 60)
     logger.info("Starting final data enrichment and sorting process")

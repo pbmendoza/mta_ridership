@@ -104,6 +104,7 @@ Each file includes:
 - All scripts use relative paths based on project root
 - Comprehensive logging to `logs/` directory
 - Automatic project root detection via `.git` directory
+- Shared script bootstrap helpers live in `scripts/utils/runtime.py`
 
 ### Running the Pipeline
 

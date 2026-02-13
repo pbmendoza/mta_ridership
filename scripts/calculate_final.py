@@ -18,9 +18,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 import logging
 from pathlib import Path
+import sys
 from typing import Dict, Optional, Sequence, Tuple
 
 import pandas as pd
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from scripts.utils.runtime import find_project_root, setup_script_logging
 
 DAY_GROUP_ORDER: Tuple[str, ...] = ("total", "weekday", "weekend")
 ALLOWED_DAY_GROUPS = set(DAY_GROUP_ORDER)
@@ -113,43 +118,6 @@ LEVELS: Dict[str, LevelConfig] = {
         sort_columns=("year", "month", "day_group"),
     ),
 }
-
-
-def find_project_root() -> Path:
-    """Find project root by locating the .git directory."""
-    script_dir = Path(__file__).resolve().parent
-    search_starts = [Path.cwd(), script_dir]
-
-    visited = set()
-    for start in search_starts:
-        if start in visited:
-            continue
-        visited.add(start)
-        if (start / ".git").exists():
-            return start
-        for parent in start.parents:
-            if parent in visited:
-                continue
-            visited.add(parent)
-            if (parent / ".git").exists():
-                return parent
-
-    # scripts/calculate_final.py -> project root is one level up.
-    return script_dir.parent
-
-
-def setup_logging(base_dir: Path) -> logging.Logger:
-    """Configure script logging to file + stdout."""
-    log_dir = base_dir / "logs"
-    log_dir.mkdir(parents=True, exist_ok=True)
-    log_file = log_dir / "calculate_final_api.log"
-
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(message)s",
-        handlers=[logging.FileHandler(log_file), logging.StreamHandler()],
-    )
-    return logging.getLogger(__name__)
 
 
 def load_csv_required(
@@ -326,8 +294,13 @@ def save_output(df: pd.DataFrame, path: Path, base_dir: Path, logger: logging.Lo
 
 def main() -> None:
     """Run final API merge for station, puma, and nyc outputs."""
-    base_dir = find_project_root()
-    logger = setup_logging(base_dir)
+    base_dir = find_project_root(start=Path(__file__).resolve().parent)
+    logger, _ = setup_script_logging(
+        base_dir=base_dir,
+        logger_name=__name__,
+        log_filename="calculate_final_api.log",
+        fmt="%(message)s",
+    )
 
     logger.info("\n🚀 API final merge: ridership + baseline")
     logger.info("   Output directory: data/api/processed\n")

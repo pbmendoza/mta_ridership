@@ -29,41 +29,13 @@ Output:
 import pandas as pd
 from pathlib import Path
 import logging
+import sys
 from datetime import datetime
 from typing import Tuple
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-def find_project_root() -> Path:
-    """Find the project root by looking for .git directory."""
-    current = Path.cwd()
-    
-    if (current / '.git').exists():
-        return current
-    
-    for parent in current.parents:
-        if (parent / '.git').exists():
-            return parent
-    
-    return current
-
-
-def setup_logging(base_dir: Path) -> logging.Logger:
-    """Set up logging configuration."""
-    log_dir = base_dir / "logs"
-    log_dir.mkdir(exist_ok=True)
-    
-    log_file = log_dir / "calculate_final.log"
-    
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.FileHandler(log_file),
-            logging.StreamHandler()
-        ]
-    )
-    
-    return logging.getLogger(__name__)
+from scripts.utils.runtime import find_project_root, setup_script_logging
 
 
 def load_data_pair(
@@ -327,7 +299,11 @@ def main():
     base_dir = find_project_root()
     
     # Set up logging
-    logger = setup_logging(base_dir)
+    logger, _ = setup_script_logging(
+        base_dir=base_dir,
+        logger_name=__name__,
+        log_filename="calculate_final.log",
+    )
     
     logger.info("="*60)
     logger.info("Starting final ridership calculation with baseline comparisons")

@@ -41,46 +41,18 @@ from __future__ import annotations
 
 import argparse
 import logging
+import sys
 from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from scripts.utils.runtime import find_project_root, setup_script_logging
+
 # Default baseline years for stations not in special cases
 DEFAULT_BASELINE_YEARS = [2015, 2016, 2017, 2018, 2019]
-
-
-def find_project_root() -> Path:
-    """Find the project root by looking for .git directory."""
-    current = Path.cwd()
-    
-    if (current / '.git').exists():
-        return current
-    
-    for parent in current.parents:
-        if (parent / '.git').exists():
-            return parent
-    
-    return current
-
-
-def setup_logging(base_dir: Path) -> logging.Logger:
-    """Set up logging configuration."""
-    log_dir = base_dir / "logs"
-    log_dir.mkdir(exist_ok=True)
-    
-    log_file = log_dir / "calculate_baseline.log"
-    
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.FileHandler(log_file),
-            logging.StreamHandler()
-        ]
-    )
-    
-    return logging.getLogger(__name__)
 
 
 def load_special_cases_config(base_dir: Path, logger: logging.Logger) -> dict:
@@ -362,7 +334,11 @@ def main():
     base_dir = find_project_root()
     
     # Set up logging
-    logger = setup_logging(base_dir)
+    logger, _ = setup_script_logging(
+        base_dir=base_dir,
+        logger_name=__name__,
+        log_filename="calculate_baseline.log",
+    )
     
     logger.info("Starting baseline calculation")
     start_time = datetime.now()

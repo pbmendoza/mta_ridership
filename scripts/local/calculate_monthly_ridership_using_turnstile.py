@@ -22,45 +22,12 @@ Usage:
 import pandas as pd
 from pathlib import Path
 import logging
+import sys
 from datetime import datetime
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-def find_project_root() -> Path:
-    """Find the project root by looking for .git directory."""
-    candidates = [Path(__file__).resolve(), *Path(__file__).resolve().parents]
-
-    for current in candidates:
-        if (current / '.git').exists():
-            return current
-
-    cwd = Path.cwd()
-    if (cwd / '.git').exists():
-        return cwd
-
-    for parent in cwd.parents:
-        if (parent / '.git').exists():
-            return parent
-
-    raise RuntimeError("Could not find project root directory.")
-
-
-def setup_logging(base_dir: Path) -> logging.Logger:
-    """Set up logging configuration."""
-    log_dir = base_dir / "logs"
-    log_dir.mkdir(exist_ok=True)
-    
-    log_file = log_dir / "calculate_monthly_ridership_using_turnstile.log"
-    
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.FileHandler(log_file),
-            logging.StreamHandler()
-        ]
-    )
-    
-    return logging.getLogger(__name__)
+from scripts.utils.runtime import find_project_root, setup_script_logging
 
 
 def calculate_raw_monthly_totals(base_dir: Path, logger: logging.Logger):
@@ -165,10 +132,14 @@ def calculate_raw_monthly_totals(base_dir: Path, logger: logging.Logger):
 def main():
     """Main execution function."""
     # Find project root
-    base_dir = find_project_root()
+    base_dir = find_project_root(require_git=True)
     
     # Set up logging
-    logger = setup_logging(base_dir)
+    logger, _ = setup_script_logging(
+        base_dir=base_dir,
+        logger_name=__name__,
+        log_filename="calculate_monthly_ridership_using_turnstile.log",
+    )
     
     logger.info("="*60)
     logger.info("Starting raw monthly ridership calculation")
