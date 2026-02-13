@@ -1,25 +1,30 @@
 # MTA Ridership Data Processing Pipeline
 
-Last updated: 2026-02-11
+Last updated: 2026-02-12
 
 ## Overview
 
-The MTA Ridership Data Processing Pipeline (`run_pipeline.py`) processes modern NYC subway ridership data (2020–present) and merges it with pre-computed baseline averages to create comprehensive ridership metrics at multiple geographic levels.
+The local processing workflow is split into three pipeline runners:
 
-A separate pipeline (`pipelines/calculate_baseline.py`) handles the historical turnstile data (2014–2023) to generate the baseline files (2015–2019 monthly averages). This only needs to be run once, or when baseline data needs regeneration.
+1. `pipelines/calculate_baseline_local_turnstile.py` generates baseline files from historical turnstile data (2014–2023 source, 2015–2019 baseline period).
+2. `pipelines/calculate_ridership_local.py` processes modern local ridership data (2020–present) into monthly ridership outputs.
+3. `run_pipeline.py` performs final merge/enrichment using those precomputed baseline and ridership outputs.
 
 ## Quick Start
 
 ```bash
-# Main pipeline: modern ridership + final merge + enrichment
-python run_pipeline.py
-
 # Generate baseline files (only needed once, or to regenerate)
-python pipelines/calculate_baseline.py
+python pipelines/calculate_baseline_local_turnstile.py
+
+# Generate modern local ridership outputs
+python pipelines/calculate_ridership_local.py
+
+# Final merge + enrichment
+python run_pipeline.py
 ```
 
-`run_pipeline.py` requires existing baseline files in `results/baseline/`.
-If those files are missing, run the historical pipeline first.
+`run_pipeline.py` requires existing baseline files in `results/baseline/`
+and existing local ridership files in `results/ridership_local/`.
 
 ## Pipeline Architecture
 
@@ -59,26 +64,25 @@ If those files are missing, run the historical pipeline first.
 
 ## Pipeline Steps
 
-### Step 1: Baseline Validation
+### Modern Local Ridership Pipeline
 
-Verifies that baseline files exist in `results/baseline/`. If missing, the pipeline exits with instructions to run `pipelines/calculate_baseline.py`.
+**Runner**: `pipelines/calculate_ridership_local.py`
 
-### Step 2: Modern Ridership Calculation
+This runner executes the modern local branch end-to-end:
+- Stages each raw ridership file from `data/raw/ridership/`
+- Processes staged files into daily aggregates
+- Runs `scripts/local/calculate_ridership.py` to generate monthly metrics
+- Writes outputs to `results/ridership_local/`
 
-**Script**: `calculate_ridership.py`
+### Final Merge Pipeline
 
-- Processes 2020-present data
-- Tracks payment method distribution (MetroCard vs OMNY)
-- Aggregates to station, PUMA, and city-wide levels
-- Filters out partial months to ensure complete monthly totals
+**Runner**: `run_pipeline.py`
 
-### Step 3: Final Analysis
-
-**Script**: `calculate_final.py`
-
-- Merges modern ridership with baseline
-- Calculates percentage changes
-- Generates comparison metrics
+This runner requires precomputed inputs and then:
+1. Validates baseline files in `results/baseline/`
+2. Validates modern local ridership files in `results/ridership_local/`
+3. Runs `scripts/local/calculate_final.py` for baseline comparisons
+4. Optionally runs `scripts/enrich_final_data.py` (skip via `--skip-enrich`)
 
 **Important Note on Baseline Metrics**:
 - The baseline data includes both `entries` and `exits` from 2015–2019
@@ -86,19 +90,11 @@ Verifies that baseline files exist in `results/baseline/`. If missing, the pipel
 - Rationale: ensures consistency with modern ridership (combined entry counts across all payment methods)
 - Formula used in final outputs: `baseline_comparison = ridership / baseline_ridership`
 
-### Step 4: Data Enrichment
-
-**Script**: `enrich_final_data.py`
-
-- Adds human-readable station names
-- Adds PUMA neighborhood names
-- Sorts output for easy analysis
-
 ## Performance Optimizations
 
 ### Turnstile Data Caching
 
-The historical turnstile pipeline (`pipelines/calculate_baseline.py`) caches the combined turnstile file:
+The historical turnstile pipeline (`pipelines/calculate_baseline_local_turnstile.py`) caches the combined turnstile file:
 
 - **First run**: Takes 15-20 minutes to combine 488 files
 - **Subsequent runs**: Skips turnstile staging, saves ~10 minutes
@@ -116,7 +112,7 @@ To regenerate:
 
 ```bash
 # Force regeneration of turnstile_combined.csv and recalculate baseline
-python pipelines/calculate_baseline.py --force-stage
+python pipelines/calculate_baseline_local_turnstile.py --force-stage
 ```
 
 ### Memory Management
@@ -147,14 +143,14 @@ The updated `stage_turnstile_data.py` processes files in batches:
 - `data/staging/`: Combined raw data files
 - `data/processed/`: Cleaned and aggregated data
 - `results/baseline/`: Historical baseline metrics
-- `results/ridership/`: Modern ridership metrics
+- `results/ridership_local/`: Modern local ridership metrics
 
 #### Baseline Results Schemas (`results/baseline/`)
 - `monthly_baseline_station.csv`: `complex_id`, `month`, `entries`, `exits`
 - `monthly_baseline_puma.csv`: `puma`, `month`, `entries`, `exits`
 - `monthly_baseline_nyc.csv`: `nyc`, `month`, `entries`, `exits`
 
-#### Modern Ridership Schemas (`results/ridership/`)
+#### Modern Ridership Schemas (`results/ridership_local/`)
 - `monthly_ridership_station.csv`: `complex_id`, `year`, `month`, `period`, `day_group`, `ridership`, `omny_pct`
 - `monthly_ridership_puma.csv`: `puma`, `year`, `month`, `period`, `day_group`, `ridership`, `omny_pct`
 - `monthly_ridership_nyc.csv`: `year`, `month`, `period`, `day_group`, `ridership`, `omny_pct`
@@ -166,8 +162,9 @@ Typical pipeline execution times:
 
 | Run Mode | Typical Time |
 |------|------------------|
-| Main pipeline (`python run_pipeline.py`) | 10-15 min |
-| Historical pipeline (`python pipelines/calculate_baseline.py`) | 15-25 min |
+| Modern local ridership (`python pipelines/calculate_ridership_local.py`) | 10-15 min |
+| Final merge pipeline (`python run_pipeline.py`) | 1-3 min |
+| Historical pipeline (`python pipelines/calculate_baseline_local_turnstile.py`) | 15-25 min |
 
 Notes:
 - Times and sizes are approximate and depend on hardware and storage (e.g., ~16GB RAM Mac, SSD). Capture date: 2026-02-11.
@@ -188,7 +185,7 @@ Ensure all directories exist:
 
 ```bash
 mkdir -p data/{raw,staging,processed,quarantine}/{turnstile,ridership}
-mkdir -p results/{baseline,ridership,final}
+mkdir -p results/{baseline,ridership_local,final}
 mkdir -p logs
 ```
 
@@ -210,7 +207,8 @@ If using OneDrive, large file operations may cause sync delays:
 
 1. **New turnstile files**: Place in `data/raw/turnstile/`
 2. **New ridership files**: Place in `data/raw/ridership/`
-3. Run `python run_pipeline.py` (run `python pipelines/calculate_baseline.py` first if baseline needs regeneration)
+3. Run `python pipelines/calculate_ridership_local.py`
+4. Run `python run_pipeline.py` (run `python pipelines/calculate_baseline_local_turnstile.py` first if baseline needs regeneration)
 
 ### Updating Processing Logic
 

@@ -25,9 +25,9 @@ Usage:
     python scripts/local/calculate_ridership.py
 
 Output:
-    - results/ridership/monthly_ridership_station.csv
-    - results/ridership/monthly_ridership_puma.csv
-    - results/ridership/monthly_ridership_nyc.csv
+    - results/ridership_local/monthly_ridership_station.csv
+    - results/ridership_local/monthly_ridership_puma.csv
+    - results/ridership_local/monthly_ridership_nyc.csv
 """
 
 import pandas as pd
@@ -495,7 +495,7 @@ def main():
         # Define paths
         ridership_dir = base_dir / "data" / "processed" / "ridership"
         station_puma_file = base_dir / "references" / "stations" / "station_to_puma.csv"
-        output_dir = base_dir / "results" / "ridership"
+        output_dir = base_dir / "results" / "ridership_local"
         
         # Load all ridership data
         logger.info("\n📊 Loading ridership data...")

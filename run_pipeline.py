@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Pipeline runner for modern MTA ridership processing, final merge, and enrichment."""
+"""Pipeline runner for final merge and enrichment using precomputed inputs."""
 
 from __future__ import annotations
 
@@ -16,18 +16,19 @@ PROJECT_ROOT = Path(__file__).resolve().parent
 SCRIPTS_DIR = PROJECT_ROOT / "scripts" / "local"
 SCRIPTS_ROOT = PROJECT_ROOT / "scripts"
 
-RIDERSHIP_RAW_DIR = PROJECT_ROOT / "data" / "raw" / "ridership"
-
 BASELINE_REQUIRED_FILES = [
     PROJECT_ROOT / "results" / "baseline" / "monthly_baseline_station.csv",
     PROJECT_ROOT / "results" / "baseline" / "monthly_baseline_puma.csv",
     PROJECT_ROOT / "results" / "baseline" / "monthly_baseline_nyc.csv",
 ]
 
+RIDERSHIP_LOCAL_REQUIRED_FILES = [
+    PROJECT_ROOT / "results" / "ridership_local" / "monthly_ridership_station.csv",
+    PROJECT_ROOT / "results" / "ridership_local" / "monthly_ridership_puma.csv",
+    PROJECT_ROOT / "results" / "ridership_local" / "monthly_ridership_nyc.csv",
+]
+
 SCRIPTS_REQUIRED = [
-    SCRIPTS_DIR / "stage_ridership_data.py",
-    SCRIPTS_DIR / "process_ridership_data.py",
-    SCRIPTS_DIR / "calculate_ridership.py",
     SCRIPTS_DIR / "calculate_final.py",
     SCRIPTS_ROOT / "enrich_final_data.py",
 ]
@@ -41,10 +42,6 @@ def print_header(message: str) -> None:
 
 def print_step(message: str) -> None:
     print(f"[STEP] {message}")
-
-
-def print_warning(message: str) -> None:
-    print(f"[WARN] {message}")
 
 
 def print_error(message: str) -> None:
@@ -85,20 +82,6 @@ def clean_csv_dir(path: Path) -> int:
     return count
 
 
-def find_ridership_files() -> List[Path]:
-    """Find top-level raw ridership CSV files sorted by filename."""
-    if not RIDERSHIP_RAW_DIR.exists():
-        raise FileNotFoundError(f"Ridership source directory not found: {RIDERSHIP_RAW_DIR}")
-
-    files = sorted(
-        [path for path in RIDERSHIP_RAW_DIR.glob("*.csv") if path.is_file()],
-        key=lambda path: path.name.lower(),
-    )
-    if not files:
-        raise FileNotFoundError(f"No ridership CSV files found in {RIDERSHIP_RAW_DIR}")
-    return files
-
-
 def validate_baseline_files() -> None:
     """Require baseline files to exist before default-mode final merge."""
     missing = [path for path in BASELINE_REQUIRED_FILES if not path.is_file()]
@@ -107,7 +90,19 @@ def validate_baseline_files() -> None:
         raise RuntimeError(
             "Baseline files are missing. This pipeline requires existing baseline outputs.\n"
             f"{missing_list}\n"
-            "Run 'python pipelines/calculate_baseline.py' to generate them."
+            "Run 'python pipelines/calculate_baseline_local_turnstile.py' to generate them."
+        )
+
+
+def validate_ridership_local_files() -> None:
+    """Require modern local ridership outputs before final merge."""
+    missing = [path for path in RIDERSHIP_LOCAL_REQUIRED_FILES if not path.is_file()]
+    if missing:
+        missing_list = "\n".join(f"  - {path.relative_to(PROJECT_ROOT)}" for path in missing)
+        raise RuntimeError(
+            "Modern ridership files are missing. This pipeline requires existing local ridership outputs.\n"
+            f"{missing_list}\n"
+            "Run 'python pipelines/calculate_ridership_local.py' to generate them."
         )
 
 
@@ -126,8 +121,8 @@ def run_command(step_name: str, args_list: Iterable[str]) -> None:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Run the MTA ridership pipeline. Processes modern ridership data, "
-            "merges with existing baseline, and enriches final outputs."
+            "Run the MTA finalization pipeline. Merges existing modern ridership and "
+            "baseline outputs, then optionally enriches final files."
         )
     )
     parser.add_argument(
@@ -143,7 +138,7 @@ def main() -> int:
     started = time.monotonic()
     run_summary: List[str] = []
 
-    print_header("MTA Ridership Data Processing Pipeline (Python Runner)")
+    print_header("MTA Ridership Final Pipeline (Python Runner)")
     print(f"Started at: {datetime.now().isoformat(timespec='seconds')}")
     print(f"Project root: {PROJECT_ROOT}")
     print(f"Python: {sys.executable}")
@@ -153,57 +148,19 @@ def main() -> int:
         ensure_pandas_available()
         ensure_required_scripts_exist()
 
-        print_header("Step 0: Cleaning Output Directories")
-        clean_targets = [
-            PROJECT_ROOT / "data" / "staging" / "ridership",
-            PROJECT_ROOT / "data" / "processed" / "ridership",
-            PROJECT_ROOT / "results" / "ridership",
-            PROJECT_ROOT / "results" / "final",
-        ]
-        for target in clean_targets:
-            removed = clean_csv_dir(target)
-            print_step(f"Cleaned {target.relative_to(PROJECT_ROOT)} ({removed} file(s))")
-
-        ridership_files = find_ridership_files()
-        print_step(
-            "Found ridership files: "
-            + ", ".join(path.name for path in ridership_files)
-        )
-
         print_header("Step 1: Baseline Validation")
         validate_baseline_files()
         print_step("Baseline files detected")
 
-        print_header("Step 2: Modern Ridership Branch")
-        for ridership_file in ridership_files:
-            run_command(
-                f"Staging ridership file {ridership_file.name}",
-                [
-                    sys.executable,
-                    str(SCRIPTS_DIR / "stage_ridership_data.py"),
-                    "--filename",
-                    ridership_file.name,
-                ],
-            )
+        print_header("Step 2: Modern Ridership Validation")
+        validate_ridership_local_files()
+        print_step("Local ridership files detected")
 
-        for ridership_file in ridership_files:
-            run_command(
-                f"Processing ridership file {ridership_file.name}",
-                [
-                    sys.executable,
-                    str(SCRIPTS_DIR / "process_ridership_data.py"),
-                    "--filename",
-                    ridership_file.name,
-                ],
-            )
+        print_header("Step 3: Cleaning Final Output Directory")
+        removed = clean_csv_dir(PROJECT_ROOT / "results" / "final")
+        print_step(f"Cleaned results/final ({removed} file(s))")
 
-        run_command(
-            "Calculating modern ridership metrics",
-            [sys.executable, str(SCRIPTS_DIR / "calculate_ridership.py")],
-        )
-        run_summary.append("modern ridership branch")
-
-        print_header("Step 3: Final Merge")
+        print_header("Step 4: Final Merge")
         run_command(
             "Merging ridership with baseline",
             [sys.executable, str(SCRIPTS_DIR / "calculate_final.py")],
@@ -214,7 +171,7 @@ def main() -> int:
             print_step("Skipping enrichment by request (--skip-enrich)")
             run_summary.append("enrichment skipped")
         else:
-            print_header("Step 4: Enrichment")
+            print_header("Step 5: Enrichment")
             run_command(
                 "Enriching final outputs",
                 [sys.executable, str(SCRIPTS_ROOT / "enrich_final_data.py")],
@@ -229,7 +186,7 @@ def main() -> int:
         print(f"Total time: {minutes} minute(s) {seconds} second(s)")
         print("Ran: " + ", ".join(run_summary))
         print("\nOutputs:")
-        print("  - results/ridership/")
+        print("  - results/ridership_local/ (existing)")
         print("  - results/final/")
         print("  - results/baseline/ (existing)")
         return 0

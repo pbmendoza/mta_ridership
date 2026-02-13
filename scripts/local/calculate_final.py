@@ -7,7 +7,7 @@ It adds baseline ridership and comparison metrics to show how current ridership 
 to the 2015-2019 baseline period.
 
 Features:
-- Reads ridership data from results/ridership/
+- Reads ridership data from results/ridership_local/
 - Reads baseline data from results/baseline/
 - Merges data by geographic level and month
 - Calculates baseline comparison (ridership / baseline_ridership)
@@ -121,14 +121,29 @@ def merge_with_baseline(
     else:  # nyc
         geo_col = None
     
-    # Prepare baseline data - use entries as baseline_ridership
-    # NOTE: While the baseline calculation produces both entries and exits,
-    # we use only entries for comparison to maintain consistency with how
-    # modern ridership is reported (combined entry counts across all payment methods).
-    # This provides a single, clear metric for tracking recovery.
-    baseline_df = baseline_df.rename(columns={
-        'entries': 'baseline_ridership'
-    })
+    # Prepare baseline data to a common baseline_ridership column.
+    # Support legacy baseline schema ('entries') and newer schema ('ridership').
+    if 'baseline_ridership' in baseline_df.columns:
+        pass
+    elif 'entries' in baseline_df.columns:
+        baseline_df = baseline_df.rename(columns={'entries': 'baseline_ridership'})
+    elif 'ridership' in baseline_df.columns:
+        baseline_df = baseline_df.rename(columns={'ridership': 'baseline_ridership'})
+    else:
+        raise ValueError(
+            "Baseline data must include one of: baseline_ridership, entries, ridership"
+        )
+
+    # Baseline may include day-group rows; final comparison is against monthly totals.
+    if 'day_group' in baseline_df.columns:
+        original_count = len(baseline_df)
+        baseline_df = baseline_df[baseline_df['day_group'] == 'total'].copy()
+        if baseline_df.empty:
+            raise ValueError("Baseline data has 'day_group' but contains no 'total' rows.")
+        logger.info(
+            f"  - Filtered baseline to day_group='total': "
+            f"{len(baseline_df):,} of {original_count:,} records"
+        )
     
     # Select only needed columns from baseline
     if geo_col:
@@ -137,6 +152,8 @@ def merge_with_baseline(
         baseline_cols = ['month', 'baseline_ridership']
     
     baseline_df = baseline_df[baseline_cols]
+    group_keys = [col for col in baseline_cols if col != 'baseline_ridership']
+    baseline_df = baseline_df.groupby(group_keys, as_index=False)['baseline_ridership'].sum()
     
     # Merge ridership with baseline
     if geo_col:
@@ -213,7 +230,7 @@ def process_geographic_level(
     ridership_file = f"monthly_ridership_{level}.csv"
     baseline_file = f"monthly_baseline_{level}.csv"
     
-    ridership_path = base_dir / "results" / "ridership" / ridership_file
+    ridership_path = base_dir / "results" / "ridership_local" / ridership_file
     baseline_path = base_dir / "results" / "baseline" / baseline_file
     
     # Load data

@@ -52,7 +52,7 @@ mta_ridership/
 │   └── external/           # Reference data (stations, PUMA boundaries)
 ├── results/
 │   ├── baseline/           # 2015-2019 monthly averages
-│   ├── ridership/          # Current ridership metrics
+│   ├── ridership_local/    # Local modern ridership metrics
 │   └── final/              # Final analysis with comparisons
 ├── references/
 │   ├── docs/               # Detailed documentation
@@ -105,24 +105,31 @@ Each file includes:
 
 ### Running the Pipeline
 
-Default execution runs the modern branch and final outputs, using existing baseline files:
+Run the final merge pipeline (requires existing baseline and local ridership outputs):
 
 ```bash
 python run_pipeline.py
 ```
 
-To generate or regenerate the baseline files from historical turnstile data:
+To generate or regenerate baseline files from historical turnstile data:
 
 ```bash
-python pipelines/calculate_baseline.py
+python pipelines/calculate_baseline_local_turnstile.py
+```
+
+To generate or regenerate modern local ridership outputs:
+
+```bash
+python pipelines/calculate_ridership_local.py
 ```
 
 ### Adding New Data
 1. Place raw files in appropriate `data/raw/` subdirectory
 2. Update staging scripts if format differs
-3. Run full pipeline to regenerate results, e.g.:
+3. Run the local ridership pipeline, then final merge:
 
 ```bash
+python pipelines/calculate_ridership_local.py
 python run_pipeline.py
 ```
 

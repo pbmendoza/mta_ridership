@@ -132,7 +132,7 @@ The station-to-PUMA mapping enables aggregation in our analysis pipeline:
 2. **PUMA Aggregation**: Sum ridership for all stations within each PUMA
 3. **Output Files**:
    - [`results/baseline/monthly_baseline_puma.csv`](../../results/baseline/monthly_baseline_puma.csv)
-   - [`results/ridership/monthly_ridership_puma.csv`](../../results/ridership/monthly_ridership_puma.csv)
+   - [`results/ridership_local/monthly_ridership_puma.csv`](../../results/ridership_local/monthly_ridership_puma.csv)
    - [`results/final/monthly_ridership_puma.csv`](../../results/final/monthly_ridership_puma.csv)
 
 This neighborhood-level analysis reveals ridership patterns that aren't visible at the city-wide or station level, enabling better understanding of how different areas of NYC use the subway system.
