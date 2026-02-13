@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Aggregate API station-level ridership to PUMA and NYC levels.
 
-Reads results/ridership_api/monthly_ridership_station.csv and produces:
-    - results/ridership_api/monthly_ridership_puma.csv
-    - results/ridership_api/monthly_ridership_nyc.csv
+Reads results/ridership/monthly_ridership_station.csv and produces:
+    - results/ridership/monthly_ridership_puma.csv
+    - results/ridership/monthly_ridership_nyc.csv
 """
 
 from pathlib import Path
@@ -18,7 +18,7 @@ DAY_GROUP_ORDER = ["total", "weekday", "weekend"]
 
 def load_station_data() -> pd.DataFrame:
     """Load station-level ridership from the API output."""
-    path = PROJECT_ROOT / "results" / "ridership_api" / "monthly_ridership_station.csv"
+    path = PROJECT_ROOT / "results" / "ridership" / "monthly_ridership_station.csv"
     df = pd.read_csv(path)
     # Back-calculate OMNY ridership for proper re-aggregation
     df["omny_ridership"] = (df["ridership"] * df["omny_pct"] / 100).round(2)
@@ -104,7 +104,7 @@ def main() -> None:
     print("🏙️  Aggregating to NYC level...")
     nyc_df = aggregate_to_nyc(station_df)
 
-    output_dir = PROJECT_ROOT / "results" / "ridership_api"
+    output_dir = PROJECT_ROOT / "results" / "ridership"
     output_dir.mkdir(parents=True, exist_ok=True)
 
     puma_path = output_dir / "monthly_ridership_puma.csv"
