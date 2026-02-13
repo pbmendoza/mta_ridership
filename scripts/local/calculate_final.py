@@ -8,7 +8,7 @@ to the 2015-2019 baseline period.
 
 Features:
 - Reads ridership data from data/local/ridership/
-- Reads baseline data from data/local/baseline/
+- Reads baseline data from data/local/baseline_turnstile/
 - Merges data by geographic level and month
 - Calculates baseline comparison (ridership / baseline_ridership)
 - Outputs enhanced files to data/local/production/
@@ -203,7 +203,7 @@ def process_geographic_level(
     baseline_file = f"monthly_baseline_{level}.csv"
     
     ridership_path = base_dir / "data" / "local" / "ridership" / ridership_file
-    baseline_path = base_dir / "data" / "local" / "baseline" / baseline_file
+    baseline_path = base_dir / "data" / "local" / "baseline_turnstile" / baseline_file
     
     # Load data
     ridership_df, baseline_df = load_data_pair(

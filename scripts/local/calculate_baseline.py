@@ -120,7 +120,7 @@ def calculate_baselines(base_dir: Path, logger: logging.Logger,
     baseline_years = sorted(baseline_years)
     
     # Define paths
-    input_file = base_dir / "data" / "processed" / "turnstile" / "daily_ridership.csv"
+    input_file = base_dir / "data" / "local" / "processed" / "turnstile" / "daily_ridership.csv"
     station_puma_file = base_dir / "references" / "stations" / "station_to_puma.csv"
     output_dir = base_dir / "data" / "local" / "baseline_turnstile"
     

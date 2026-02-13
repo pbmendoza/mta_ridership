@@ -469,7 +469,7 @@ def main():
     
     try:
         # Define paths
-        ridership_dir = base_dir / "data" / "processed" / "ridership"
+        ridership_dir = base_dir / "data" / "local" / "processed" / "ridership"
         station_puma_file = base_dir / "references" / "stations" / "station_to_puma.csv"
         output_dir = base_dir / "data" / "local" / "ridership"
         

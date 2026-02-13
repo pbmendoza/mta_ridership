@@ -8,7 +8,7 @@ baseline year overrides, or outlier filtering. It is intended for historical mon
 exploration or for manual comparisons with the baseline pipeline outputs.
 
 Input:
-- data/processed/turnstile/daily_ridership.csv
+- data/local/processed/turnstile/daily_ridership.csv
 - references/stations/stations_complexes_official.csv
 
 Output:
@@ -34,7 +34,7 @@ def calculate_raw_monthly_totals(base_dir: Path, logger: logging.Logger):
     """Calculate raw monthly ridership totals from daily data."""
     
     # Define paths
-    input_file = base_dir / "data" / "processed" / "turnstile" / "daily_ridership.csv"
+    input_file = base_dir / "data" / "local" / "processed" / "turnstile" / "daily_ridership.csv"
     stations_file = base_dir / "references" / "stations" / "stations_complexes_official.csv"
     output_dir = base_dir / "data" / "local" / "ridership_turnstile"
     output_file = output_dir / "raw_monthly_turnstile_2015_2019.csv"
