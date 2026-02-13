@@ -55,7 +55,9 @@ Official PUMA codes and their corresponding neighborhood names for human-readabl
 ## Mapping Process
 
 ### Script
-**File**: [`scripts/add_puma_to_stations.py`](../../scripts/add_puma_to_stations.py)
+**File**: [`scripts/one_off/add_puma_to_stations.py`](../../scripts/one_off/add_puma_to_stations.py)
+
+This script is intended as a one-off utility for regenerating the station-to-PUMA mapping when station coordinates or boundary data changes.
 
 ### Algorithm Steps
 
