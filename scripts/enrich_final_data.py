@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Enrich and Sort Final Data
+    Enrich and Sort Final Data
 
 This script enriches the final ridership analysis files by adding human-readable names
 for PUMAs and subway station complexes, then sorts the data for consistent output.
@@ -17,9 +17,9 @@ Usage:
     python scripts/enrich_final_data.py
 
 Output:
-    - Enriches and sorts results/final/monthly_ridership_puma.csv
-    - Enriches and sorts results/final/monthly_ridership_station.csv
-    - Sorts results/final/monthly_ridership_nyc.csv
+    - Enriches and sorts data/api/production/monthly_ridership_puma.csv
+    - Enriches and sorts data/api/production/monthly_ridership_station.csv
+    - Sorts data/api/production/monthly_ridership_nyc.csv
 
 Performance:
     - Processes files in-memory using pandas
@@ -105,9 +105,14 @@ def load_station_reference(base_dir: Path, logger: logging.Logger) -> pd.DataFra
     return df
 
 
-def enrich_puma_data(base_dir: Path, logger: logging.Logger) -> Tuple[int, int]:
+def enrich_puma_data(
+    base_dir: Path,
+    logger: logging.Logger,
+    input_dir: Path,
+    output_dir: Path,
+) -> Tuple[int, int]:
     """Enrich PUMA ridership data with PUMA names."""
-    puma_file = base_dir / "results" / "final" / "monthly_ridership_puma.csv"
+    puma_file = input_dir / "monthly_ridership_puma.csv"
     
     logger.info(f"\nEnriching PUMA data: {puma_file.relative_to(base_dir)}")
     
@@ -166,15 +171,23 @@ def enrich_puma_data(base_dir: Path, logger: logging.Logger) -> Tuple[int, int]:
     df_enriched = df_enriched.sort_values(['year', 'month', 'puma'], ignore_index=True)
     
     # Save enriched and sorted data
-    df_enriched.to_csv(puma_file, index=False)
-    logger.info(f"Saved enriched and sorted PUMA data to: {puma_file.relative_to(base_dir)}")
+    output_path = output_dir / "monthly_ridership_puma.csv"
+    df_enriched.to_csv(output_path, index=False)
+    logger.info(
+        f"Saved enriched and sorted PUMA data to: {output_path.relative_to(base_dir)}"
+    )
     
     return matched_count, missing_count
 
 
-def enrich_station_data(base_dir: Path, logger: logging.Logger) -> Tuple[int, int]:
+def enrich_station_data(
+    base_dir: Path,
+    logger: logging.Logger,
+    input_dir: Path,
+    output_dir: Path,
+) -> Tuple[int, int]:
     """Enrich station ridership data with station names."""
-    station_file = base_dir / "results" / "final" / "monthly_ridership_station.csv"
+    station_file = input_dir / "monthly_ridership_station.csv"
     
     logger.info(f"\nEnriching station data: {station_file.relative_to(base_dir)}")
     
@@ -229,15 +242,18 @@ def enrich_station_data(base_dir: Path, logger: logging.Logger) -> Tuple[int, in
     df_enriched = df_enriched.sort_values(['year', 'month', 'station_name'], ignore_index=True)
     
     # Save enriched and sorted data
-    df_enriched.to_csv(station_file, index=False)
-    logger.info(f"Saved enriched and sorted station data to: {station_file.relative_to(base_dir)}")
+    output_path = output_dir / "monthly_ridership_station.csv"
+    df_enriched.to_csv(output_path, index=False)
+    logger.info(
+        f"Saved enriched and sorted station data to: {output_path.relative_to(base_dir)}"
+    )
     
     return matched_count, missing_count
 
 
-def sort_nyc_data(base_dir: Path, logger: logging.Logger) -> int:
+def sort_nyc_data(base_dir: Path, logger: logging.Logger, input_dir: Path, output_dir: Path) -> int:
     """Sort NYC-wide ridership data by year and month."""
-    nyc_file = base_dir / "results" / "final" / "monthly_ridership_nyc.csv"
+    nyc_file = input_dir / "monthly_ridership_nyc.csv"
     
     logger.info(f"\nSorting NYC data: {nyc_file.relative_to(base_dir)}")
     
@@ -251,8 +267,9 @@ def sort_nyc_data(base_dir: Path, logger: logging.Logger) -> int:
     df = df.sort_values(['year', 'month'], ignore_index=True)
     
     # Save sorted data
-    df.to_csv(nyc_file, index=False)
-    logger.info(f"Saved sorted NYC data to: {nyc_file.relative_to(base_dir)}")
+    output_path = output_dir / "monthly_ridership_nyc.csv"
+    df.to_csv(output_path, index=False)
+    logger.info(f"Saved sorted NYC data to: {output_path.relative_to(base_dir)}")
     
     return record_count
 
@@ -269,13 +286,21 @@ def main():
     
     try:
         # Enrich PUMA data
-        puma_matched, puma_missing = enrich_puma_data(base_dir, logger)
+        input_dir = base_dir / "data" / "api" / "processed"
+        output_dir = base_dir / "data" / "api" / "production"
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        puma_matched, puma_missing = enrich_puma_data(
+            base_dir, logger, input_dir, output_dir
+        )
         
         # Enrich station data
-        station_matched, station_missing = enrich_station_data(base_dir, logger)
+        station_matched, station_missing = enrich_station_data(
+            base_dir, logger, input_dir, output_dir
+        )
         
         # Sort NYC data (no enrichment needed)
-        nyc_records = sort_nyc_data(base_dir, logger)
+        nyc_records = sort_nyc_data(base_dir, logger, input_dir, output_dir)
         
         # Summary statistics
         logger.info("\n" + "=" * 60)
