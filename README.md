@@ -75,10 +75,15 @@ Outputs:
 
 ## Quick Start
 
-1. Install dependencies:
+1. Install dependencies from `pyproject.toml`:
 
 ```bash
-pip install .
+# (optional) create and activate a venv first
+python3 -m venv .venv
+source .venv/bin/activate
+
+# install all runtime deps declared in [project].dependencies
+python -m pip install -e .
 ```
 
 2. Configure Socrata credentials (recommended to avoid rate limits):
@@ -128,14 +133,3 @@ Legacy paths (not active production workflow):
 - `pipelines/calculate_ridership_local.py`
 - `pipelines/calculate_baseline_local_turnstile.py`
 - `data/local/`
-
-## Reference Docs
-
-- `references/docs/socrata_api_setup.md`
-- `references/scripts/api_ridership_filters.md`
-- `references/scripts/calculate_baseline.md`
-- `references/docs/puma_mapping.md`
-
-## Maintainers
-
-Maintained by OSDC / NYS Office of the State Comptroller for the NYC Subway Recovery Tracker project.
