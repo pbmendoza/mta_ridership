@@ -207,7 +207,9 @@ class TurnstileDataProcessor:
         
         # Remove first reading of each turnstile (no previous value to calculate diff)
         # This avoids losing accumulated counts when turnstiles first appear
-        df = df[df['ENTRIES_DIFF'].notna() & df['EXITS_DIFF'].notna()].copy()
+        valid_readings = df['ENTRIES_DIFF'].notna() & df['EXITS_DIFF'].notna()
+        first_readings_removed = len(df) - valid_readings.sum()
+        df = df[valid_readings].copy()
         
         # Apply quality filters using vectorized operations
         df['ENTRIES_DIFF'] = df['ENTRIES_DIFF'].clip(lower=0, upper=USAGE_THRESHOLD_4HOURS)
@@ -223,7 +225,7 @@ class TurnstileDataProcessor:
         # Log statistics
         total_entries = df['ENTRIES_DIFF'].sum()
         total_exits = df['EXITS_DIFF'].sum()
-        first_readings_removed = df.groupby('turnstile_id').size().count()
+        # total rows removed by the first-reading filter
         self.logger.info(f"   📊 Removed {first_readings_removed:,} first readings (one per turnstile)")
         self.logger.info(f"   🚶 Total entries: {total_entries:,.0f}")
         self.logger.info(f"   🚪 Total exits: {total_exits:,.0f}")
