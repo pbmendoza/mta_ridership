@@ -201,6 +201,14 @@ def positive_int(value: str) -> int:
     return parsed
 
 
+def month_int(value: str) -> int:
+    """argparse type for month integers in the valid calendar range."""
+    parsed = int(value)
+    if not 1 <= parsed <= 12:
+        raise argparse.ArgumentTypeError("Month must be between 1 and 12.")
+    return parsed
+
+
 def load_dataset_ids(config: DatasetConfig) -> Dict[str, str]:
     """Load year-to-dataset-id mapping from JSON config."""
     config_path = repo_root() / "references" / config.config_filename
@@ -679,7 +687,7 @@ def build_arg_parser(config: DatasetConfig) -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--month",
-        type=int,
+        type=month_int,
         default=None,
         help="Month to download (1-12). If omitted, downloads all months 1-12.",
     )
