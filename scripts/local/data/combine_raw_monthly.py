@@ -1,12 +1,16 @@
 """Combine monthly ridership CSVs into a single yearly file."""
 
+import sys
 from pathlib import Path
 
 import pandas as pd
 
-from pal.tools.paths import identify_project_root
+# Ensure repo root is on sys.path so that ``scripts.utils`` is importable.
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
-PROJECT_ROOT = identify_project_root(anchors=".git")
+from scripts.utils.runtime import find_project_root
+
+PROJECT_ROOT = find_project_root(start=Path(__file__).resolve().parent, require_git=True)
 SCRIPT_DIR = Path(__file__).parent
 
 YEAR = 2025
