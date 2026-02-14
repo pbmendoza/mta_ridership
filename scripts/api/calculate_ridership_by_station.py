@@ -410,6 +410,21 @@ def load_existing_output(output_path: Path) -> Optional[pd.DataFrame]:
         return None
 
 
+def get_output_path(station_id: Optional[str]) -> Path:
+    """Return output path for full or single-station output."""
+    if not station_id:
+        return repo_root() / OUTPUT_REL_PATH
+    safe_station_id = "".join(
+        ch for ch in str(station_id).strip() if ch.isalnum() or ch in ("-", "_")
+    )
+    if not safe_station_id:
+        safe_station_id = "station"
+    station_path = OUTPUT_REL_PATH.with_name(
+        f"monthly_ridership_station_{safe_station_id}.csv"
+    )
+    return repo_root() / station_path
+
+
 def get_existing_months(existing_df: Optional[pd.DataFrame]) -> Set[Tuple[int, int]]:
     """Return a set of (year, month) tuples present in the existing output."""
     if existing_df is None:
@@ -433,7 +448,7 @@ def main() -> int:
         )
     headers = build_headers(app_token, secret_token)
 
-    output_path = repo_root() / OUTPUT_REL_PATH
+    output_path = get_output_path(args.station_id)
 
     # -- Build candidate tasks from the JSON config --------------------------
     all_tasks, future_months = build_tasks(dataset_ids, args.year, args.month)
