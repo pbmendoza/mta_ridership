@@ -24,14 +24,20 @@ FULL_REFRESH = False
 def run_step(label: str, script: Path, extra_args: list[str] | None = None) -> None:
     """Run a single pipeline step, aborting on failure."""
     cmd = [sys.executable, str(script)] + (extra_args or [])
-    print(f"\n{'=' * 60}")
-    print(f"🚀 {label}")
-    print(f"   {' '.join(cmd)}")
-    print(f"{'=' * 60}\n")
+    width = 58
+    content = f"🚀 {label}"
+    if len(content) > width - 4:
+        content = content[: width - 7] + "…"
+
+    print(f"\n┌{'─' * (width - 2)}┐")
+    print(f"│ {content.ljust(width - 4)} │")
+    print(f"└{'─' * (width - 2)}┘")
 
     result = subprocess.run(cmd, cwd=str(PROJECT_ROOT))
     if result.returncode != 0:
-        print(f"\n❌ Pipeline aborted — '{label}' exited with code {result.returncode}")
+        print(f"\n❌ Pipeline stopped at {label} (could not complete).")
+        print(f"   Exit code: {result.returncode}")
+        print("   A non-zero exit means this step could not complete and stopped the pipeline.")
         sys.exit(result.returncode)
 
 
@@ -67,9 +73,9 @@ def main() -> None:
         PROJECT_ROOT / "scripts" / "enrich_final_data.py",
     )
 
-    print(f"\n{'=' * 60}")
-    print("✅ Pipeline complete!")
-    print(f"{'=' * 60}")
+    print("\n╭──────────────────────────────────────╮")
+    print("│ ✅ Monthly Ridership Pipeline complete │")
+    print("╰──────────────────────────────────────╯")
 
 
 if __name__ == "__main__":

@@ -305,13 +305,19 @@ def format_output(df: pd.DataFrame) -> pd.DataFrame:
     ].copy()
 
 
-def build_tasks(dataset_ids: Dict[int, str], year: Optional[int], month: Optional[int]) -> Iterable[MonthTask]:
+def build_tasks(
+    dataset_ids: Dict[int, str],
+    year: Optional[int],
+    month: Optional[int],
+) -> tuple[list[MonthTask], list[tuple[int, int]]]:
     if year is not None:
         years = [year]
     else:
         years = sorted(dataset_ids.keys())
 
     months = [month] if month is not None else list(range(1, 13))
+    future_months: list[tuple[int, int]] = []
+    tasks: list[MonthTask] = []
 
     for y in years:
         dataset_id = dataset_ids.get(y)
@@ -320,9 +326,16 @@ def build_tasks(dataset_ids: Dict[int, str], year: Optional[int], month: Optiona
             continue
         for m in months:
             if is_future_month(y, m):
-                print(f"⏭️  {y}/{m:02d}: future month, skipping.")
+                future_months.append((y, m))
                 continue
-            yield MonthTask(year=y, month=m, dataset_id=dataset_id)
+            tasks.append(MonthTask(year=y, month=m, dataset_id=dataset_id))
+
+    return tasks, future_months
+
+
+def format_month(year: int, month: int) -> str:
+    """Return a short human label like 'Feb 2026'."""
+    return f"{calendar.month_abbr[month]} {year}"
 
 
 def parse_args() -> argparse.Namespace:
@@ -423,9 +436,23 @@ def main() -> int:
     output_path = repo_root() / OUTPUT_REL_PATH
 
     # -- Build candidate tasks from the JSON config --------------------------
-    all_tasks = list(build_tasks(dataset_ids, args.year, args.month))
+    all_tasks, future_months = build_tasks(dataset_ids, args.year, args.month)
+    if future_months:
+        latest_future = max(future_months)
+        print(
+            f"📅 Future months skipped: {len(future_months)} "
+            f"(through {latest_future[0]:04d}-{latest_future[1]:02d})."
+        )
+
     if not all_tasks:
-        print("No month tasks to process.")
+        print("Everything is already up to date. Nothing to run right now.")
+        print("\n📊 Update summary")
+        print("   Status: Up to date")
+        print("   Months evaluated: 0")
+        print(f"   New/refresh months completed: 0")
+        print(f"   Skipped because future month: {len(future_months)}")
+        print("   Skipped because incomplete/no rows: 0")
+        print("   Output changed: No")
         return 0
 
     # -- Determine operating mode and filter tasks ---------------------------
@@ -487,15 +514,15 @@ def main() -> int:
     try:
         for task in tasks:
             endpoint = get_soda_endpoint(task.dataset_id)
-            month_label = f"{task.year}/{task.month:02d}"
-            print(f"🔍 {month_label}: checking completeness...")
+            month_label = format_month(task.year, task.month)
+            print(f"🔍 Verifying data for {month_label}...")
 
             if not month_has_complete_days(session, endpoint, headers, task.year, task.month):
                 incomplete_count += 1
-                print(f"⚠️  {month_label}: incomplete month, skipping.")
+                print(f"⚠️  {month_label} is not fully complete yet, so it was skipped.")
                 continue
 
-            print(f"📥 {month_label}: fetching grouped API rows...")
+            print(f"📥 Fetching {month_label} grouped ridership rows...")
             raw_month = fetch_month_station_payment_day_group(
                 session=session,
                 endpoint=endpoint,
@@ -507,14 +534,17 @@ def main() -> int:
             )
             if raw_month.empty:
                 incomplete_count += 1
-                print(f"⚠️  {month_label}: no rows returned after filters, skipping.")
+                print(
+                    f"⚠️  No complete ridership rows available for {month_label} "
+                    "with current filters."
+                )
                 continue
 
             month_metrics = to_station_month_metrics(raw_month, task.year, task.month)
             monthly_frames.append(month_metrics)
             refreshed_months.add((task.year, task.month))
             complete_count += 1
-            print(f"✅ {month_label}: collected {len(month_metrics):,} station/day_group rows.")
+            print(f"✅ Saved {month_label} data ({len(month_metrics):,} rows).")
     finally:
         session.close()
 
@@ -532,23 +562,39 @@ def main() -> int:
         kept_existing = None
 
     # Grid-fill the newly-fetched data.
-    if monthly_frames:
-        new_data = pd.concat(monthly_frames, ignore_index=True)
-        new_data = create_complete_station_month_grid(new_data, station_id=args.station_id)
-    else:
-        new_data = None
+    if not monthly_frames:
+        print(
+            "No complete new months were ready, so nothing was changed. "
+            "This usually means the selected month(s) are still incomplete or not yet available."
+        )
+        print("\n📊 Update summary")
+        print("   Status: Waiting on data")
+        print(f"   Months evaluated: {len(tasks)}")
+        print("   New/refresh months completed: 0")
+        print(f"   Skipped because future month: {len(future_months)}")
+        print(f"   Skipped because incomplete/no rows: {incomplete_count}")
+        print("   Output changed: No")
+        return 0
+
+    new_data = pd.concat(monthly_frames, ignore_index=True)
+    new_data = create_complete_station_month_grid(new_data, station_id=args.station_id)
 
     # Combine.
     parts = [p for p in [kept_existing, new_data] if p is not None and not p.empty]
-    if not parts:
-        print("No complete months were produced. Nothing written.")
-        return 1
-
     combined = pd.concat(parts, ignore_index=True)
     output_df = format_output(combined)
 
+    previous_rows = 0
+    if output_path.exists():
+        try:
+            previous_df = pd.read_csv(output_path)
+            previous_rows = len(previous_df)
+        except Exception:
+            previous_rows = 0
+
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_df.to_csv(output_path, index=False)
+    output_changed = len(output_df) != previous_rows
 
     kept_count = (
         kept_existing[["year", "month"]].drop_duplicates().shape[0]
@@ -558,11 +604,15 @@ def main() -> int:
     total_months = output_df[["year", "month"]].drop_duplicates().shape[0]
     print()
     print("📊 Summary")
+    print(f"   Status:                       Updated")
+    print(f"   Months evaluated:             {len(tasks)}")
+    print(f"   New/refresh months completed: {complete_count}")
+    print(f"   Skipped because future month:  {len(future_months)}")
+    print(f"   Skipped because incomplete/no rows: {incomplete_count}")
     print(f"   Months kept from disk:        {kept_count}")
-    print(f"   Months fetched (new/refresh): {complete_count}")
-    print(f"   Months incomplete (skipped):  {incomplete_count}")
     print(f"   Total months in output:       {total_months}")
     print(f"   Output rows:                  {len(output_df):,}")
+    print(f"   Output changed:               {'Yes' if output_changed else 'No'}")
     print(f"   Saved to:                     {output_path}")
     return 0
 

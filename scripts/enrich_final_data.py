@@ -4,72 +4,51 @@
 
 This script enriches the final ridership analysis files by adding human-readable names
 for PUMAs and subway station complexes, then sorts the data for consistent output.
-
-Features:
-- Adds puma_name to monthly_ridership_puma.csv from NYC PUMA crosswalk
-- Adds station_name to monthly_ridership_station.csv from station complex reference
-- Sorts all files by year and month for chronological ordering
-- Additional sorting by puma/station_name for geographic consistency
-- Handles missing mappings gracefully with warnings
-- Provides detailed logging of enrichment statistics
-
-Usage:
-    python scripts/enrich_final_data.py
-
-Output:
-    - Enriches and sorts data/production/monthly_ridership_puma.csv
-    - Enriches and sorts data/production/monthly_ridership_station.csv
-    - Sorts data/production/monthly_ridership_nyc.csv
-
-Performance:
-    - Processes files in-memory using pandas
-    - Typically completes in under 1 second for standard datasets
 """
 
-import pandas as pd
 from pathlib import Path
 import logging
 import sys
-from typing import Tuple, Dict
+from typing import Tuple
+
+import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from scripts.utils.runtime import find_project_root, setup_script_logging
 
 
-def load_puma_crosswalk(base_dir: Path, logger: logging.Logger) -> pd.DataFrame:
+def output_status(path: Path, new_count: int) -> str:
+    """Describe output state in operator-friendly language."""
+    if not path.exists():
+        return "Created new output file."
+
+    try:
+        previous_count = len(pd.read_csv(path))
+    except Exception:
+        return "Updated (could not compare to previous file)."
+
+    if previous_count == new_count:
+        return "Up to date (row count unchanged)."
+    return f"Updated ({previous_count:,} → {new_count:,} rows)."
+
+
+def load_puma_crosswalk(base_dir: Path) -> pd.DataFrame:
     """Load PUMA crosswalk data."""
     puma_file = base_dir / "data" / "external" / "puma" / "nyc_puma_crosswalk_2020.csv"
-    
-    logger.info(f"Loading PUMA crosswalk from: {puma_file.relative_to(base_dir)}")
     df = pd.read_csv(puma_file)
-    
-    # Ensure puma_code is string for consistent joining
-    df['puma_code'] = df['puma_code'].astype(str)
-    
-    logger.info(f"Loaded {len(df)} PUMA mappings")
+    df["puma_code"] = df["puma_code"].astype(str)
     return df
 
 
-def load_station_reference(base_dir: Path, logger: logging.Logger) -> pd.DataFrame:
+def load_station_reference(base_dir: Path) -> pd.DataFrame:
     """Load station complex reference data."""
     station_file = base_dir / "references" / "stations" / "stations_complexes_official.csv"
-    
-    logger.info(f"Loading station reference from: {station_file.relative_to(base_dir)}")
     df = pd.read_csv(station_file)
-    
-    # Select only needed columns and rename for clarity
-    df = df[['Complex ID', 'Stop Name']].copy()
-    df.columns = ['complex_id', 'station_name']
-    
-    # Ensure complex_id is string for consistent joining
-    df['complex_id'] = df['complex_id'].astype(str)
-    
-    # Remove duplicates if any (shouldn't be any for complex ID)
-    df = df.drop_duplicates(subset=['complex_id'])
-    
-    logger.info(f"Loaded {len(df)} station mappings")
-    return df
+    df = df[["Complex ID", "Stop Name"]].copy()
+    df.columns = ["complex_id", "station_name"]
+    df["complex_id"] = df["complex_id"].astype(str)
+    return df.drop_duplicates(subset=["complex_id"])
 
 
 def enrich_puma_data(
@@ -77,74 +56,49 @@ def enrich_puma_data(
     logger: logging.Logger,
     input_dir: Path,
     output_dir: Path,
-) -> Tuple[int, int]:
+) -> Tuple[int, int, str]:
     """Enrich PUMA ridership data with PUMA names."""
     puma_file = input_dir / "monthly_ridership_puma.csv"
-    
-    logger.info(f"\nEnriching PUMA data: {puma_file.relative_to(base_dir)}")
-    
-    # Load data
+    logger.info(f"PUMA data: {puma_file.name}")
+
     df = pd.read_csv(puma_file)
     original_count = len(df)
-    logger.info(f"Loaded {original_count:,} ridership records")
-    
-    # Convert puma to string for joining
-    df['puma'] = df['puma'].astype(str)
-    
-    # Load crosswalk
-    puma_crosswalk = load_puma_crosswalk(base_dir, logger)
-    
-    # Get unique PUMAs in ridership data
-    unique_pumas = df['puma'].unique()
-    logger.info(f"Found {len(unique_pumas)} unique PUMAs in ridership data")
-    
-    # Check if puma_name already exists
-    if 'puma_name' in df.columns:
-        logger.info("Column 'puma_name' already exists, updating values...")
-        # Drop existing puma_name column to refresh it
-        df = df.drop('puma_name', axis=1)
-    
-    # Merge with crosswalk
+    df["puma"] = df["puma"].astype(str)
+
+    puma_crosswalk = load_puma_crosswalk(base_dir)
+
+    if "puma_name" in df.columns:
+        df = df.drop("puma_name", axis=1)
+
     df_enriched = df.merge(
-        puma_crosswalk[['puma_code', 'puma_name']], 
-        left_on='puma', 
-        right_on='puma_code', 
-        how='left'
-    )
-    
-    # Drop the duplicate puma_code column
-    df_enriched = df_enriched.drop('puma_code', axis=1)
-    
-    # Reorder columns to put puma_name after puma
+        puma_crosswalk[["puma_code", "puma_name"]],
+        left_on="puma",
+        right_on="puma_code",
+        how="left",
+    ).drop("puma_code", axis=1)
+
     cols = list(df_enriched.columns)
-    cols.remove('puma_name')
-    puma_idx = cols.index('puma')
-    cols.insert(puma_idx + 1, 'puma_name')
+    cols.remove("puma_name")
+    puma_idx = cols.index("puma")
+    cols.insert(puma_idx + 1, "puma_name")
     df_enriched = df_enriched[cols]
-    
-    # Check for missing mappings
-    missing_mask = df_enriched['puma_name'].isna()
-    missing_count = missing_mask.sum()
-    
-    if missing_count > 0:
-        missing_pumas = df_enriched[missing_mask]['puma'].unique()
-        logger.warning(f"Found {missing_count} records with unmapped PUMAs: {sorted(missing_pumas)}")
-    
+
+    missing_mask = df_enriched["puma_name"].isna()
+    missing_count = int(missing_mask.sum())
+    if missing_count:
+        logger.warning(
+            f"   {missing_count:,} PUMA rows are still missing a readable station area name."
+        )
+
     matched_count = original_count - missing_count
-    logger.info(f"Successfully matched {matched_count:,} of {original_count:,} records ({matched_count/original_count*100:.1f}%)")
-    
-    # Sort by year, month, and puma
-    logger.info("Sorting data by year, month, and puma...")
-    df_enriched = df_enriched.sort_values(['year', 'month', 'puma'], ignore_index=True)
-    
-    # Save enriched and sorted data
+    df_enriched = df_enriched.sort_values(["year", "month", "puma"], ignore_index=True)
+
     output_path = output_dir / "monthly_ridership_puma.csv"
+    status = output_status(output_path, len(df_enriched))
     df_enriched.to_csv(output_path, index=False)
-    logger.info(
-        f"Saved enriched and sorted PUMA data to: {output_path.relative_to(base_dir)}"
-    )
-    
-    return matched_count, missing_count
+    logger.info(f"   Wrote {output_path.name}: {status}")
+
+    return matched_count, missing_count, status
 
 
 def enrich_station_data(
@@ -152,139 +106,115 @@ def enrich_station_data(
     logger: logging.Logger,
     input_dir: Path,
     output_dir: Path,
-) -> Tuple[int, int]:
+) -> Tuple[int, int, str]:
     """Enrich station ridership data with station names."""
     station_file = input_dir / "monthly_ridership_station.csv"
-    
-    logger.info(f"\nEnriching station data: {station_file.relative_to(base_dir)}")
-    
-    # Load data
+    logger.info(f"Station data: {station_file.name}")
+
     df = pd.read_csv(station_file)
     original_count = len(df)
-    logger.info(f"Loaded {original_count:,} ridership records")
-    
-    # Convert complex_id to string for joining
-    df['complex_id'] = df['complex_id'].astype(str)
-    
-    # Load station reference
-    station_ref = load_station_reference(base_dir, logger)
-    
-    # Get unique complexes in ridership data
-    unique_complexes = df['complex_id'].unique()
-    logger.info(f"Found {len(unique_complexes)} unique station complexes in ridership data")
-    
-    # Check if station_name already exists
-    if 'station_name' in df.columns:
-        logger.info("Column 'station_name' already exists, updating values...")
-        # Drop existing station_name column to refresh it
-        df = df.drop('station_name', axis=1)
-    
-    # Merge with reference
-    df_enriched = df.merge(
-        station_ref, 
-        on='complex_id', 
-        how='left'
-    )
-    
-    # Reorder columns to put station_name after complex_id
+    df["complex_id"] = df["complex_id"].astype(str)
+
+    station_ref = load_station_reference(base_dir)
+
+    if "station_name" in df.columns:
+        df = df.drop("station_name", axis=1)
+
+    df_enriched = df.merge(station_ref, on="complex_id", how="left")
+
     cols = list(df_enriched.columns)
-    cols.remove('station_name')
-    complex_idx = cols.index('complex_id')
-    cols.insert(complex_idx + 1, 'station_name')
+    cols.remove("station_name")
+    complex_idx = cols.index("complex_id")
+    cols.insert(complex_idx + 1, "station_name")
     df_enriched = df_enriched[cols]
-    
-    # Check for missing mappings
-    missing_mask = df_enriched['station_name'].isna()
-    missing_count = missing_mask.sum()
-    
-    if missing_count > 0:
-        missing_complexes = df_enriched[missing_mask]['complex_id'].unique()
-        logger.warning(f"Found {missing_count} records with unmapped station complexes: {sorted(missing_complexes)}")
-    
+
+    missing_mask = df_enriched["station_name"].isna()
+    missing_count = int(missing_mask.sum())
+    if missing_count:
+        logger.warning(
+            f"   {missing_count:,} station rows are still missing a readable station name."
+        )
+
     matched_count = original_count - missing_count
-    logger.info(f"Successfully matched {matched_count:,} of {original_count:,} records ({matched_count/original_count*100:.1f}%)")
-    
-    # Sort by year, month, and station_name
-    logger.info("Sorting data by year, month, and station_name...")
-    df_enriched = df_enriched.sort_values(['year', 'month', 'station_name'], ignore_index=True)
-    
-    # Save enriched and sorted data
+    df_enriched = df_enriched.sort_values(["year", "month", "station_name"], ignore_index=True)
+
     output_path = output_dir / "monthly_ridership_station.csv"
+    status = output_status(output_path, len(df_enriched))
     df_enriched.to_csv(output_path, index=False)
-    logger.info(
-        f"Saved enriched and sorted station data to: {output_path.relative_to(base_dir)}"
-    )
-    
-    return matched_count, missing_count
+    logger.info(f"   Wrote {output_path.name}: {status}")
+
+    return matched_count, missing_count, status
 
 
-def sort_nyc_data(base_dir: Path, logger: logging.Logger, input_dir: Path, output_dir: Path) -> int:
+def sort_nyc_data(
+    base_dir: Path,
+    logger: logging.Logger,
+    input_dir: Path,
+    output_dir: Path,
+) -> Tuple[int, str]:
     """Sort NYC-wide ridership data by year and month."""
     nyc_file = input_dir / "monthly_ridership_nyc.csv"
-    
-    logger.info(f"\nSorting NYC data: {nyc_file.relative_to(base_dir)}")
-    
-    # Load data
+    logger.info(f"NYC data: {nyc_file.name}")
+
     df = pd.read_csv(nyc_file)
     record_count = len(df)
-    logger.info(f"Loaded {record_count:,} ridership records")
-    
-    # Sort by year and month
-    logger.info("Sorting data by year and month...")
-    df = df.sort_values(['year', 'month'], ignore_index=True)
-    
-    # Save sorted data
+    df = df.sort_values(["year", "month"], ignore_index=True)
+
     output_path = output_dir / "monthly_ridership_nyc.csv"
+    status = output_status(output_path, len(df))
     df.to_csv(output_path, index=False)
-    logger.info(f"Saved sorted NYC data to: {output_path.relative_to(base_dir)}")
-    
-    return record_count
+    logger.info(f"   Wrote {output_path.name}: {status}")
+
+    return record_count, status
 
 
-def main():
+def main() -> None:
     """Main execution function."""
-    # Find project root and set up logging
     base_dir = find_project_root()
-    logger, log_path = setup_script_logging(
+    logger, _ = setup_script_logging(
         base_dir=base_dir,
         logger_name=__name__,
         timestamped_prefix="enrich_final_data",
+        fmt="%(message)s",
     )
-    logger.info(f"Logging to: {log_path.relative_to(base_dir)}")
-    
-    logger.info("=" * 60)
-    logger.info("Starting final data enrichment and sorting process")
-    logger.info("=" * 60)
-    
+
+    logger.info("Updating final data files with readable names")
+
     try:
-        # Enrich PUMA data
         input_dir = base_dir / "data" / "api" / "processed"
         output_dir = base_dir / "data" / "production"
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        puma_matched, puma_missing = enrich_puma_data(
+        puma_matched, puma_missing, puma_status = enrich_puma_data(
             base_dir, logger, input_dir, output_dir
         )
-        
-        # Enrich station data
-        station_matched, station_missing = enrich_station_data(
+        station_matched, station_missing, station_status = enrich_station_data(
             base_dir, logger, input_dir, output_dir
         )
-        
-        # Sort NYC data (no enrichment needed)
-        nyc_records = sort_nyc_data(base_dir, logger, input_dir, output_dir)
-        
-        # Summary statistics
-        logger.info("\n" + "=" * 60)
-        logger.info("Processing Summary:")
-        logger.info("-" * 60)
-        logger.info(f"PUMA data:    {puma_matched:,} matched, {puma_missing:,} missing")
-        logger.info(f"Station data: {station_matched:,} matched, {station_missing:,} missing")
-        logger.info(f"NYC data:     {nyc_records:,} records sorted")
-        logger.info("=" * 60)
-        
-        logger.info("Final data enrichment and sorting completed successfully!")
-        
+        nyc_records, nyc_status = sort_nyc_data(base_dir, logger, input_dir, output_dir)
+
+        puma_total = puma_matched + puma_missing
+        station_total = station_matched + station_missing
+        all_up_to_date = all(
+            "Up to date" in status or "up to date" in status
+            for status in [puma_status, station_status, nyc_status]
+        )
+
+        logger.info("")
+        logger.info("Step 4 summary")
+        logger.info(f"Status: {'Up to date' if all_up_to_date else 'Updated'}")
+        logger.info(f"PUMA file: {puma_status}")
+        logger.info(f"Station file: {station_status}")
+        logger.info(f"NYC file: {nyc_status}")
+        logger.info(
+            f"PUMA names matched: {puma_matched:,} of {puma_total:,} rows "
+            f"({(puma_matched / puma_total * 100) if puma_total else 0:.1f}%)"
+        )
+        logger.info(
+            f"Station names matched: {station_matched:,} of {station_total:,} rows "
+            f"({(station_matched / station_total * 100) if station_total else 0:.1f}%)"
+        )
+        logger.info(f"NYC rows sorted: {nyc_records:,}")
     except Exception as e:
         logger.error(f"Error during processing: {str(e)}", exc_info=True)
         raise

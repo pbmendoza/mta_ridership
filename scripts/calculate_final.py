@@ -186,9 +186,10 @@ def merge_level(level: str, config: LevelConfig, base_dir: Path, logger: logging
     )
 
     logger.info(
-        "  • Loaded rows: ridership=%s, baseline=%s",
+        "   Loaded %s ridership rows and %s baseline rows for %s.",
         f"{len(ridership_df):,}",
         f"{len(baseline_df):,}",
+        level,
     )
 
     validate_day_groups(ridership_df, f"{level} ridership")
@@ -225,7 +226,7 @@ def merge_level(level: str, config: LevelConfig, base_dir: Path, logger: logging
     missing_baseline = int(missing_mask.sum())
     if missing_baseline > 0:
         logger.info(
-            "  ⚠️ Missing baseline rows: %s (baseline and baseline_comparison left empty)",
+            "   ℹ️ Baseline values are missing for %s rows. Comparison is left blank for those rows.",
             f"{missing_baseline:,}",
         )
 
@@ -233,7 +234,8 @@ def merge_level(level: str, config: LevelConfig, base_dir: Path, logger: logging
     nonpositive_baseline = int(nonpositive_mask.sum())
     if nonpositive_baseline > 0:
         logger.info(
-            "  ⚠️ Non-positive baseline rows: %s (baseline_comparison left empty)",
+            "   ℹ️ %s rows have non-positive baseline values. "
+            "Comparison is left blank for those rows.",
             f"{nonpositive_baseline:,}",
         )
 
@@ -258,22 +260,22 @@ def merge_level(level: str, config: LevelConfig, base_dir: Path, logger: logging
             .tolist()
         )
 
-        logger.info("  🔎 Station baseline issue summary")
+        logger.info("   Station baseline check (for visibility)")
         logger.info(
-            "    missing baseline: %s rows across %s complex_id(s)",
+            "      Missing baseline rows: %s across %s station IDs",
             f"{missing_baseline:,}",
             f"{len(missing_ids):,}",
         )
         if missing_ids:
-            logger.info("    missing baseline complex_id(s): %s", missing_ids)
+            logger.info("      Stations with no baseline: %s", missing_ids)
 
         logger.info(
-            "    non-positive baseline: %s rows across %s complex_id(s)",
+            "      Non-positive baseline rows: %s across %s station IDs",
             f"{nonpositive_baseline:,}",
             f"{len(nonpositive_ids):,}",
         )
         if nonpositive_ids:
-            logger.info("    non-positive baseline complex_id(s): %s", nonpositive_ids)
+            logger.info("      Stations with non-positive baseline: %s", nonpositive_ids)
 
     merged_df["day_group"] = pd.Categorical(
         merged_df["day_group"], categories=DAY_GROUP_ORDER, ordered=True
@@ -285,11 +287,29 @@ def merge_level(level: str, config: LevelConfig, base_dir: Path, logger: logging
     return output_df
 
 
-def save_output(df: pd.DataFrame, path: Path, base_dir: Path, logger: logging.Logger) -> None:
-    """Save one output dataframe."""
+def save_output(df: pd.DataFrame, path: Path, base_dir: Path, logger: logging.Logger) -> str:
+    """Save one output dataframe and return a plain-language status."""
     path.parent.mkdir(parents=True, exist_ok=True)
+    file_existed = path.exists()
+    previous_count: int | None = None
+    if file_existed:
+        try:
+            previous_count = len(pd.read_csv(path))
+        except Exception:
+            previous_count = None
+
     df.to_csv(path, index=False)
-    logger.info("  ✅ Saved %s", path.relative_to(base_dir))
+    current_count = len(df)
+
+    if previous_count is None:
+        status = "Created new output file." if not file_existed else "Updated"
+    elif previous_count == current_count:
+        status = "Up to date (row count unchanged)."
+    else:
+        status = f"Updated ({previous_count:,} → {current_count:,} rows)."
+
+    logger.info("  ✅ %s (%s)", path.relative_to(base_dir), status)
+    return status
 
 
 def main() -> None:
@@ -306,6 +326,7 @@ def main() -> None:
     logger.info("   Output directory: data/api/processed\n")
 
     output_dir = base_dir / "data" / "api" / "processed"
+    output_stats: list[tuple[str, str, int]] = []
     level_labels = {
         "station": "🚉 Station",
         "puma": "🗺️ PUMA",
@@ -317,10 +338,19 @@ def main() -> None:
             logger.info("%s", level_labels[level])
             output_df = merge_level(level, config, base_dir, logger)
             output_path = output_dir / f"monthly_ridership_{level}.csv"
-            save_output(output_df, output_path, base_dir, logger)
+            status = save_output(output_df, output_path, base_dir, logger)
+            output_stats.append((level_labels[level], status, len(output_df)))
             logger.info("")
 
-        logger.info("✅ Done. Processed files are up to date.\n")
+        logger.info("📊 Step 3 summary")
+        logger.info("-" * 60)
+        overall_up_to_date = all(
+            "Up to date" in status for _, status, _ in output_stats
+        )
+        logger.info("   Status: %s", "Up to date" if overall_up_to_date else "Updated")
+        for level_name, status, row_count in output_stats:
+            logger.info("   %s: %s (%s rows)", level_name, status, f"{row_count:,}")
+        logger.info("✅ Step 3 complete.")
     except Exception as exc:
         logger.info("❌ Failed: %s", str(exc))
         raise

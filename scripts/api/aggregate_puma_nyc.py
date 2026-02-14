@@ -94,9 +94,18 @@ def aggregate_to_nyc(station_df: pd.DataFrame) -> pd.DataFrame:
 
 def main() -> None:
     """Load station data, aggregate to PUMA and NYC, and save."""
-    print("📥 Loading station-level ridership from API output...")
+    print("📦 Step 2: Build PUMA and NYC monthly totals")
+    print("📥 Loading station-level ridership and station-to-PUMA mapping...")
     station_df = load_station_data()
     mapping_df = load_station_puma_mapping()
+    print(
+        "✅ Loaded "
+        f"{len(station_df):,} station/month/day-group rows "
+        f"and {len(mapping_df):,} station-to-PUMA links."
+    )
+
+    if station_df.empty:
+        print("ℹ️  No station rows are available yet, so PUMA and NYC totals are currently empty.")
 
     print("🏘️  Aggregating to PUMA level...")
     puma_df = aggregate_by_puma(station_df, mapping_df)
@@ -111,10 +120,17 @@ def main() -> None:
     nyc_path = output_dir / "monthly_ridership_nyc.csv"
 
     puma_df.to_csv(puma_path, index=False)
-    print(f"✅ Saved PUMA data ({len(puma_df):,} rows) → {puma_path.relative_to(PROJECT_ROOT)}")
+    print(f"✅ Wrote PUMA totals ({len(puma_df):,} rows) → {puma_path.relative_to(PROJECT_ROOT)}")
 
     nyc_df.to_csv(nyc_path, index=False)
-    print(f"✅ Saved NYC data ({len(nyc_df):,} rows) → {nyc_path.relative_to(PROJECT_ROOT)}")
+    print(f"✅ Wrote NYC totals ({len(nyc_df):,} rows) → {nyc_path.relative_to(PROJECT_ROOT)}")
+
+    print()
+    print("📊 Step 2 summary")
+    print("   Status: Updated")
+    print(f"   Station rows processed:  {len(station_df):,}")
+    print(f"   PUMA output rows:       {len(puma_df):,}")
+    print(f"   NYC output rows:        {len(nyc_df):,}")
 
 
 if __name__ == "__main__":
