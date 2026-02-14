@@ -251,13 +251,29 @@ def count_rows(
     params = {"$select": "count(1)", "$where": where_clause}
     rows = request_json(session, endpoint, params, headers)
     if not rows:
-        return 0
+        raise ValueError(
+            "Count query returned an empty payload, so row count cannot be determined."
+        )
+
+    first = rows[0]
+    if not isinstance(first, dict):
+        raise ValueError(
+            f"Count query returned unexpected row type: {type(first)!r}"
+        )
+
+    count_value = (
+        next(iter(first.values()))
+        if len(first) == 1
+        else first.get("count") or first.get("count_1")
+    )
+    if count_value is None:
+        raise ValueError(f"Count query missing count field in payload row: {first!r}")
     try:
-        first = rows[0]
-        count_value = next(iter(first.values())) if len(first) == 1 else first.get("count") or first.get("count_1")
         return int(count_value)
-    except (KeyError, ValueError, TypeError):
-        return 0
+    except (ValueError, TypeError) as exc:
+        raise ValueError(
+            f"Count query returned non-integer count value: {count_value!r}"
+        ) from exc
 
 
 def check_first_day_has_data(
