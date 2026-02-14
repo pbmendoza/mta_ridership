@@ -78,7 +78,7 @@ Outputs:
 1. Install dependencies:
 
 ```bash
-pip install -r requirements.txt
+pip install .
 ```
 
 2. Configure Socrata credentials (recommended to avoid rate limits):

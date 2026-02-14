@@ -1,16 +1,23 @@
 """Combine monthly ridership CSVs into a single yearly file."""
 
-import sys
 from pathlib import Path
 
 import pandas as pd
 
-# Ensure repo root is on sys.path so that ``scripts.utils`` is importable.
-sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
-from scripts.utils.runtime import find_project_root
+def find_project_root(start: Path | None = None) -> Path:
+    """Walk parents from `start` upward to find a directory containing `.git`."""
 
-PROJECT_ROOT = find_project_root(start=Path(__file__).resolve().parent, require_git=True)
+    current = (start or Path.cwd()).resolve()
+
+    for candidate in [current, *current.parents]:
+        if (candidate / ".git").exists():
+            return candidate
+
+    raise FileNotFoundError(f"Unable to locate repository root from {start or Path.cwd()}")
+
+
+PROJECT_ROOT = find_project_root(start=Path(__file__).resolve().parent)
 SCRIPT_DIR = Path(__file__).parent
 
 YEAR = 2025
