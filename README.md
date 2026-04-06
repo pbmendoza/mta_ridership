@@ -1,183 +1,49 @@
 # MTA Ridership Pipeline
 
-This repository powers OSDC's NYC Subway Recovery Tracker data processing.
+This repository contains the data pipeline behind OSDC's NYC Subway Recovery Tracker.
 
-The current production pipeline is API-first:
-- Ridership is pulled directly from NY Open Data (Socrata API).
-- Baseline is calculated from the MTA 2017-2019 hourly ridership API dataset.
-- Final outputs are produced from API-derived intermediate files.
+It pulls monthly subway ridership from NY Open Data, calculates historical baseline values, and publishes cleaned outputs for station, PUMA, and citywide analysis.
 
-Local raw-file and turnstile workflows are still in the repo as legacy code and are not the active production path.
+## What This Repo Is For
 
-## Recommended Usage
+Use this repository to:
 
-Use the bootstrap runner from the project root:
+- refresh monthly ridership data
+- rebuild baseline comparison files when needed
+- generate the production CSVs used by downstream analysis and reporting
 
-```bash
-python run_pipeline.py
-```
+## Data Sources
 
-If `python` is not recognized on Windows, use:
+The current pipeline is built primarily from MTA subway ridership datasets published through NY Open Data (Socrata), including:
 
-```powershell
-py run_pipeline.py
-```
+- `wujg-7c2s` - MTA Subway Hourly Ridership 2020-2024
+- `5wq4-mkjj` - MTA Subway Hourly Ridership Beginning 2025
+- `t69i-h2me` - MTA Subway Hourly Ridership 2017-2019, used for baseline calculations
 
-The bootstrap runner is the supported workflow for first-time and repeat users. It:
-- creates `.venv` automatically when needed
-- installs or refreshes project dependencies when needed
-- runs the pipeline inside the repo virtual environment
-- reuses existing baseline files unless they are missing or you ask to rebuild them
+## Maintained By
 
-Instructions:
-- [`docs/run-pipeline.md`](docs/run-pipeline.md)
+This project was made for and is maintained by OSDC for the NYC Subway Recovery Tracker workflow.
 
-## Current Pipeline (Active)
+## How To Use It
 
-### 1) Build station-level monthly ridership from API (2020+)
-
-```bash
-python scripts/api/calculate_ridership_by_station.py
-```
-
-Output:
-- `data/api/ridership/monthly_ridership_station.csv`
-
-Notes:
-- Default mode is incremental (only fetches missing months).
-- Supports targeted refresh (`--year`, `--month`) and full refresh (`--full-refresh`).
-- Filters to subway only, excludes complex `502`, skips incomplete months, and outputs `total/weekday/weekend`.
-
-### 2) Aggregate station ridership to PUMA and NYC
-
-```bash
-python scripts/api/aggregate_puma_nyc.py
-```
-
-Outputs:
-- `data/api/ridership/monthly_ridership_puma.csv`
-- `data/api/ridership/monthly_ridership_nyc.csv`
-
-### 3) Calculate baseline from API ridership (2017-2019)
-
-```bash
-python scripts/api/calculate_baseline.py
-```
-
-Outputs:
-- `data/api/baseline/monthly_baseline_station.csv`
-- `data/api/baseline/monthly_baseline_puma.csv`
-- `data/api/baseline/monthly_baseline_nyc.csv`
-
-Baseline details:
-- Source dataset: `t69i-h2me` (MTA Subway Hourly Ridership: 2017-2019).
-- January 2017 is excluded (known incomplete month); January baseline uses 2018-2019.
-- Special-case station year rules come from `references/baseline_special_cases.csv`.
-
-### 4) Merge ridership + baseline
-
-```bash
-python scripts/calculate_final.py
-```
-
-Outputs:
-- `data/api/processed/monthly_ridership_station.csv`
-- `data/api/processed/monthly_ridership_puma.csv`
-- `data/api/processed/monthly_ridership_nyc.csv`
-
-### 5) Enrich with names and publish production files
-
-```bash
-python scripts/enrich_final_data.py
-```
-
-Outputs:
-- `data/production/monthly_ridership_station.csv`
-- `data/production/monthly_ridership_puma.csv`
-- `data/production/monthly_ridership_nyc.csv`
-
-## Quick Start
-
-1. Install Python 3.10 or newer.
-
-```bash
-python --version
-```
-
-```powershell
-py --version
-```
-
-2. Configure Socrata credentials if you want higher API rate limits.
-
-```bash
-cp .env.example .env
-```
-
-```powershell
-Copy-Item .env.example .env
-```
-
-Then set:
-- `SOCRATA_APP_TOKEN`
-- `SOCRATA_SECRET_TOKEN` (optional)
-
-3. Run the supported pipeline command from the project root:
+The supported way to run the repository is through the bootstrap runner at the project root:
 
 ```bash
 python run_pipeline.py
 ```
 
-```powershell
-py run_pipeline.py
-```
+For setup steps, common run options, and troubleshooting, see:
 
-If your Windows console is still using a legacy code page, emoji in log output may render as replacement characters. That is acceptable. The pipeline should not emit `--- Logging error ---` tracebacks.
+- [How to run the pipeline](docs/run-pipeline.md)
 
-4. Common options:
+## Repository Notes
 
-```bash
-python run_pipeline.py --year 2025 --month 2
-python run_pipeline.py --full-refresh
-python run_pipeline.py --rebuild-baseline
-```
+- Final published outputs are written to `data/production/`.
+- The active production workflow is API-first.
+- Older local raw-file and turnstile scripts are still in the repo for reference, but they are not the main production path.
 
-5. Advanced users can still run the active steps individually:
+## Project Structure
 
-```bash
-python scripts/api/calculate_ridership_by_station.py
-python scripts/api/aggregate_puma_nyc.py
-python scripts/api/calculate_baseline.py
-python scripts/calculate_final.py
-python scripts/enrich_final_data.py
-```
+For a simple guide to the repository layout, see:
 
-## Data Model Summary
-
-All three geographic levels (station, PUMA, NYC) use:
-- `year`, `month`, `period`
-- `day_group` in `total`, `weekday`, `weekend`
-- `ridership`
-- `omny_pct` (ridership outputs)
-- `baseline`, `baseline_comparison` (processed outputs)
-
-Station and PUMA production files are enriched with:
-- `station_name` (station-level)
-- `puma_name` (PUMA-level)
-
-## Repository Layout
-
-Active paths:
-- `run_pipeline.py` - supported bootstrap runner for first-time and repeat use
-- `docs/` - end-user instructions for first-time and repeat runs
-- `scripts/api/` - API data extraction and aggregation scripts
-- `scripts/calculate_final.py` - API ridership + baseline merge
-- `scripts/enrich_final_data.py` - final enrichment and sorting
-- `data/api/` - API-derived intermediate outputs
-- `data/production/` - final published outputs
-
-Legacy paths (not active production workflow):
-- `scripts/local/`
-- `pipelines/calculate_ridership_local.py`
-- `pipelines/calculate_baseline_local_turnstile.py`
-- `data/local/`
+- [Project structure](docs/project-structure.md)
