@@ -553,9 +553,8 @@ def process_task(
         total_rows = count_rows(session, task.endpoint, headers, where_clause)
         if total_rows <= 0:
             safe_unlink(temp_path)
-            safe_unlink(output_path)
             ui.mark_terminal(task, "no data", total_rows=1)
-            return DownloadResult("incomplete", f"⚠️  {month_label}: No data found (removed local file if present).")
+            return DownloadResult("incomplete", f"⚠️  {month_label}: No data found (kept existing local file).")
 
         ui.set_total(task, total_rows)
 
@@ -579,11 +578,10 @@ def process_task(
         if completeness_issues:
             detail = "; ".join(completeness_issues)
             safe_unlink(temp_path)
-            safe_unlink(output_path)
             ui.mark_terminal(task, "incomplete", total_rows=total_rows)
             return DownloadResult(
                 "incomplete",
-                f"⚠️  {month_label}: Incomplete ({detail}); removed local file if present.",
+                f"⚠️  {month_label}: Incomplete ({detail}); kept existing local file.",
             )
 
         if output_path.exists() and not force:
@@ -620,9 +618,8 @@ def process_task(
 
         if not success or row_count == 0:
             safe_unlink(temp_path)
-            safe_unlink(output_path)
             ui.mark_terminal(task, "empty", total_rows=total_rows)
-            return DownloadResult("incomplete", f"⚠️  {month_label}: No rows written; removed local file.")
+            return DownloadResult("incomplete", f"⚠️  {month_label}: No rows written; kept existing local file.")
 
         if row_count != total_rows:
             safe_unlink(temp_path)
