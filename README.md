@@ -78,25 +78,62 @@ Outputs:
 1. Install dependencies from `pyproject.toml`:
 
 ```bash
-# (optional) create and activate a venv first
+# macOS/Linux
 python3 -m venv .venv
 source .venv/bin/activate
+python -m pip install -e .
+```
 
-# install all runtime deps declared in [project].dependencies
+```powershell
+# Windows PowerShell
+py -m venv .venv
+.venv\Scripts\Activate.ps1
+python -m pip install -e .
+```
+
+```bat
+# Windows Command Prompt
+py -m venv .venv
+.venv\Scripts\activate.bat
 python -m pip install -e .
 ```
 
 2. Configure Socrata credentials (recommended to avoid rate limits):
 
 ```bash
+# macOS/Linux
 cp .env.example .env
+```
+
+```powershell
+# Windows PowerShell
+Copy-Item .env.example .env
 ```
 
 Then set:
 - `SOCRATA_APP_TOKEN`
 - `SOCRATA_SECRET_TOKEN` (optional)
 
-3. Run active pipeline steps in order:
+3. Run the monthly pipeline helper from the project root:
+
+```bash
+# macOS/Linux
+python3 pipelines/monthly_ridership_update.py
+```
+
+```powershell
+# Windows PowerShell or Command Prompt
+py pipelines/monthly_ridership_update.py
+```
+
+```powershell
+# Windows with an activated virtual environment
+python pipelines/monthly_ridership_update.py
+```
+
+If your Windows console is still using a legacy code page, emoji in log output may render as replacement characters. That is acceptable. The pipeline should not emit `--- Logging error ---` tracebacks.
+
+4. Or run the active pipeline steps individually:
 
 ```bash
 python scripts/api/calculate_ridership_by_station.py

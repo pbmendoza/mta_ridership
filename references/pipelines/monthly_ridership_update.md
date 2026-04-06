@@ -18,7 +18,26 @@ Each file breaks down ridership by **weekday**, **weekend**, and **total** for e
 
 ## How to run it
 
-Open and run `pipelines/monthly_ridership_update.py`. By default it only fetches months that are not already in the data — so a typical monthly update takes just a few minutes.
+Run the pipeline from the project root:
+
+```bash
+# macOS/Linux
+python3 pipelines/monthly_ridership_update.py
+```
+
+```powershell
+# Windows PowerShell or Command Prompt
+py pipelines/monthly_ridership_update.py
+```
+
+```powershell
+# Windows with an activated virtual environment
+python pipelines/monthly_ridership_update.py
+```
+
+By default it only fetches months that are not already in the data, so a typical monthly update takes just a few minutes.
+
+If your Windows console is still using a legacy code page, emoji in log output may render as replacement characters. That is acceptable. The pipeline should not emit `--- Logging error ---` tracebacks.
 
 ### Full refresh option
 
