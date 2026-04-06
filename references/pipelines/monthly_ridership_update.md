@@ -21,33 +21,38 @@ Each file breaks down ridership by **weekday**, **weekend**, and **total** for e
 Run the pipeline from the project root:
 
 ```bash
-# macOS/Linux
-python3 pipelines/monthly_ridership_update.py
+python run_pipeline.py
 ```
 
 ```powershell
-# Windows PowerShell or Command Prompt
-py pipelines/monthly_ridership_update.py
-```
-
-```powershell
-# Windows with an activated virtual environment
-python pipelines/monthly_ridership_update.py
+py run_pipeline.py
 ```
 
 By default it only fetches months that are not already in the data, so a typical monthly update takes just a few minutes.
 
 If your Windows console is still using a legacy code page, emoji in log output may render as replacement characters. That is acceptable. The pipeline should not emit `--- Logging error ---` tracebacks.
 
-### Full refresh option
+The bootstrap runner creates `.venv` and installs dependencies when needed, then runs the monthly pipeline inside that environment automatically.
 
-If you need to rebuild everything from scratch (e.g. after a data correction from the MTA), open the pipeline file and change the setting near the top:
+### Common options
 
+Refresh a specific month:
+
+```bash
+python run_pipeline.py --year 2025 --month 2
 ```
-FULL_REFRESH = True
+
+Rebuild monthly ridership from scratch:
+
+```bash
+python run_pipeline.py --full-refresh
 ```
 
-This tells the first step to re-download all months instead of only new ones. Set it back to `False` after running.
+Force the baseline files to be rebuilt:
+
+```bash
+python run_pipeline.py --rebuild-baseline
+```
 
 ## Pipeline steps (in order)
 
@@ -55,9 +60,11 @@ This tells the first step to re-download all months instead of only new ones. Se
 
 2. **Aggregate to PUMA & NYC** — Rolls up station numbers to the PUMA (neighborhood) and city-wide levels.
 
-3. **Merge with baselines** — Joins current ridership with pre-pandemic baseline values and calculates a baseline comparison ratio (e.g. 0.85 means ridership is at 85% of baseline).
+3. **Build baseline if needed** — Reuses the existing baseline files for normal monthly runs, or rebuilds them when they are missing or when `--rebuild-baseline` is passed.
 
-4. **Enrich & sort** — Adds human-readable names (station names, PUMA/neighborhood names) and sorts the final output files for consistent ordering.
+4. **Merge with baselines** — Joins current ridership with pre-pandemic baseline values and calculates a baseline comparison ratio (e.g. 0.85 means ridership is at 85% of baseline).
+
+5. **Enrich & sort** — Adds human-readable names (station names, PUMA/neighborhood names) and sorts the final output files for consistent ordering.
 
 ## When to run
 

@@ -9,6 +9,29 @@ The current production pipeline is API-first:
 
 Local raw-file and turnstile workflows are still in the repo as legacy code and are not the active production path.
 
+## Recommended Usage
+
+Use the bootstrap runner from the project root:
+
+```bash
+python run_pipeline.py
+```
+
+If `python` is not recognized on Windows, use:
+
+```powershell
+py run_pipeline.py
+```
+
+The bootstrap runner is the supported workflow for first-time and repeat users. It:
+- creates `.venv` automatically when needed
+- installs or refreshes project dependencies when needed
+- runs the pipeline inside the repo virtual environment
+- reuses existing baseline files unless they are missing or you ask to rebuild them
+
+Instructions:
+- [`docs/run-pipeline.md`](docs/run-pipeline.md)
+
 ## Current Pipeline (Active)
 
 ### 1) Build station-level monthly ridership from API (2020+)
@@ -75,38 +98,23 @@ Outputs:
 
 ## Quick Start
 
-1. Install dependencies from `pyproject.toml`:
+1. Install Python 3.10 or newer.
 
 ```bash
-# macOS/Linux
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install -e .
+python --version
 ```
 
 ```powershell
-# Windows PowerShell
-py -m venv .venv
-.venv\Scripts\Activate.ps1
-python -m pip install -e .
+py --version
 ```
 
-```bat
-# Windows Command Prompt
-py -m venv .venv
-.venv\Scripts\activate.bat
-python -m pip install -e .
-```
-
-2. Configure Socrata credentials (recommended to avoid rate limits):
+2. Configure Socrata credentials if you want higher API rate limits.
 
 ```bash
-# macOS/Linux
 cp .env.example .env
 ```
 
 ```powershell
-# Windows PowerShell
 Copy-Item .env.example .env
 ```
 
@@ -114,26 +122,27 @@ Then set:
 - `SOCRATA_APP_TOKEN`
 - `SOCRATA_SECRET_TOKEN` (optional)
 
-3. Run the monthly pipeline helper from the project root:
+3. Run the supported pipeline command from the project root:
 
 ```bash
-# macOS/Linux
-python3 pipelines/monthly_ridership_update.py
+python run_pipeline.py
 ```
 
 ```powershell
-# Windows PowerShell or Command Prompt
-py pipelines/monthly_ridership_update.py
-```
-
-```powershell
-# Windows with an activated virtual environment
-python pipelines/monthly_ridership_update.py
+py run_pipeline.py
 ```
 
 If your Windows console is still using a legacy code page, emoji in log output may render as replacement characters. That is acceptable. The pipeline should not emit `--- Logging error ---` tracebacks.
 
-4. Or run the active pipeline steps individually:
+4. Common options:
+
+```bash
+python run_pipeline.py --year 2025 --month 2
+python run_pipeline.py --full-refresh
+python run_pipeline.py --rebuild-baseline
+```
+
+5. Advanced users can still run the active steps individually:
 
 ```bash
 python scripts/api/calculate_ridership_by_station.py
@@ -159,6 +168,8 @@ Station and PUMA production files are enriched with:
 ## Repository Layout
 
 Active paths:
+- `run_pipeline.py` - supported bootstrap runner for first-time and repeat use
+- `docs/` - end-user instructions for first-time and repeat runs
 - `scripts/api/` - API data extraction and aggregation scripts
 - `scripts/calculate_final.py` - API ridership + baseline merge
 - `scripts/enrich_final_data.py` - final enrichment and sorting
