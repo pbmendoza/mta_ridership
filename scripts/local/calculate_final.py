@@ -140,16 +140,22 @@ def merge_with_baseline(
     )
     
     # Calculate baseline comparison as percentage (ridership / baseline_ridership)
-    merged_df['baseline_comparison'] = (
-        merged_df['ridership'] / merged_df['baseline_ridership']
+    # Only compute where baseline is present and positive to avoid inf/bogus ratios
+    merged_df['baseline_comparison'] = None
+    valid = merged_df['baseline_ridership'].notna() & (merged_df['baseline_ridership'] > 0)
+    merged_df.loc[valid, 'baseline_comparison'] = (
+        merged_df.loc[valid, 'ridership'] / merged_df.loc[valid, 'baseline_ridership']
     ).round(4)
-    
-    # Handle cases where baseline is missing (new stations)
+
+    # Log cases where baseline is missing (new stations)
     missing_baseline = merged_df['baseline_ridership'].isna().sum()
     if missing_baseline > 0:
         logger.warning(f"  - {missing_baseline} records without baseline data")
-        # Fill NaN comparisons with None (will appear as empty in CSV)
-        merged_df.loc[merged_df['baseline_ridership'].isna(), 'baseline_comparison'] = None
+
+    # Log cases where baseline is zero/negative (comparison left blank)
+    nonpositive_baseline = int((merged_df['baseline_ridership'].notna() & (merged_df['baseline_ridership'] <= 0)).sum())
+    if nonpositive_baseline > 0:
+        logger.info(f"  - {nonpositive_baseline} records with zero/negative baseline (comparison left blank)")
     
     # Log summary statistics
     avg_comparison = merged_df['baseline_comparison'].mean()
